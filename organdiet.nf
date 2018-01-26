@@ -1,10 +1,12 @@
 #!/usr/bin/env nextflow
 
 // params.reads = "/home/maxime/Documents/ulug_depe/data/*_R{1,2}.fastq.gz"
-params.reads = "./data/*_R{1,2}.fastq.gz"
-params.ctrl = "./data/control/*_R{1,2}.fastq.gz"
-params.outdir = "./results"
-params.btindex = "/home/maxime/Documents/ulug_depe/scripts/organdiet/data/db/bowtie/organellome"
+params.reads = "$baseDir/data/*_R{1,2}.fastq.gz"
+params.ctrl = "$baseDir/data/control/*_R{1,2}.fastq.gz"
+params.outdir = "$baseDir/results"
+params.btindex = "$baseDir/data/db/bowtie/organellome"
+scriptdir = "$baseDir/bin/"
+py_specie = scriptdir+"process_mapping.py"
 
 
 nthreads = 24
@@ -125,7 +127,6 @@ process ctr_bowtie_db {
     file(read) from trimmed_ctrl
 
     output:
-    // file "ctr.index*" into ctrl_index
     file "ctrl_index*" into ctrl_index
 
 
@@ -160,21 +161,18 @@ process bowtie_align_to_ctrl {
     //something
 
     script:
-    // """
-    // if [[ $name != *$params.ctrl ]]; then
-    //     bowtie2 -x ${params.btindex} -U $reads --threads ${task.cpus}
-    // fi
-    // """
-    /* println bt_index.toString() */
+
     index_base = bt_index.toString().tokenize(' ')[0].tokenize('.')[0]
-    /* println index_base */
-    /* print(reads.toString()) */
     sam_out = name+".sam"
     fq_out = name+"_unal.fastq"
     """
     bowtie2 -x $index_base -U $reads --no-sq --threads ${task.cpus} --un $fq_out
     """
 }
+
+/*
+* STEP 5 - Align on organellome database
+*/
 
 
 process bowtie_align_to_organellome_db {
@@ -191,23 +189,18 @@ process bowtie_align_to_organellome_db {
 
     output:
     set val(name), file('*.sam') into aligned_reads
-    //something
 
     script:
-    // """
-    // if [[ $name != *$params.ctrl ]]; then
-    //     bowtie2 -x ${params.btindex} -U $reads --threads ${task.cpus}
-    // fi
-    // """
-    /* println bt_index.toString() */
-    /* index_base = bt_index.toString().tokenize(' ')[0].tokenize('.')[0] */
-    /* println index_base */
-    /* print(reads.toString()) */
+
     sam_out = name+".sam"
     """
     bowtie2 -x ${params.btindex} -U $reads --end-to-end --threads ${task.cpus} -S $sam_out
     """
 }
+
+/*
+* STEP 6 - Extract Mapped reads
+*/
 
 process extract_mapped_reads {
 
@@ -230,8 +223,14 @@ process extract_mapped_reads {
     """
 }
 
+/*
+* STEP 6 - Get specie composition
+*/
+
 process mapped_reads_to_species {
     tag "$name"
+
+
     publishDir "${params.outdir}/taxonomic_compositions", mode: 'copy',
         saveAs: {filename ->
             if (filename.indexOf(".csv") > 0)  "./$filename"
@@ -241,8 +240,11 @@ process mapped_reads_to_species {
     output:
         set val(name), file("*.csv") into taxo_compo
 
+
+
     script:
         """
-        python3 /home/maxime/Documents/ulug_depe/scripts/organdiet/process_mapping.py $sam
+        python3 $py_specie $sam
         """
+
 }
