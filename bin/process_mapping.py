@@ -15,13 +15,24 @@ def get_args():
     '-outdir',
     default="./",
     help="path to (existing) output directory")
+    parser.add_argument(
+    '-minlen',
+    default=30,
+    help="Minimum length of match to report")
+    parser.add_argument(
+    '-idpercent',
+    default=0.99,
+    help="Minimum identity percentage of match to report")
 
     args = parser.parse_args()
 
     mysam = args.mapsam
     myoutdir = args.outdir
+    minlen = args.minlen
+    idpercent = args.idpercent
 
-    return(mysam, myoutdir)
+
+    return(mysam, myoutdir, minlen, idpercent)
 
 def request_to_specie(ncbi_id):
     """
@@ -34,11 +45,29 @@ def request_to_specie(ncbi_id):
         specie(str) specie name
     """
 
-    request = "http://taxonomy.jgi-psf.org/sc/accession/"+ncbi_id
+    request = "http:    idpercent = 0.99//taxonomy.jgi-psf.org/sc/accession/"+ncbi_id
     response = requests.get(request)
     answer = response.text
     specie = answer.split(":")[-1]
     return(specie)
+
+def common_ancestor(ncbi_id):
+    """
+    Takes  ncbi_ids as input (ex: ['NC_012978.1','NC_0125678.1']), makes a call to JGI
+    taxonomy API, and returns common_ancestor.
+
+    INPUT:
+        ncbi_id(list) ex: ['NC_012978.1','NC_0125678.1']
+    OUPUT:
+        common_ancestor(str) common_ancestor name
+    """
+
+    ncbi_id = ",".join(ncbi_id)
+    request = "http://taxonomy.jgi-psf.org/sc/name/ancestor/c"+ncbi_id
+    response = requests.get(request)
+    answer = response.text
+    specie = answer.split(":")[-1]
+    return(common_ancestor)
 
 def get_basename(samfile_name):
     if ("/") in samfile_name:
@@ -49,14 +78,13 @@ def get_basename(samfile_name):
 
 
 if __name__ == "__main__":
-    mysam, myoutdir = get_args()
+    mysam, myoutdir, minlen, idpercent = get_args()
 
     matchdict = {}
     readdict = {}
 
     fileObject = open("/home/maxime/Documents/ulug_depe/scripts/organdiet/data/db/specie_taxonomy.pickle",'rb')
     specie_taxonomy = pickle.load(fileObject)
-    id_threshold = 0.99
     basename = get_basename(mysam)
     with open(mysam, "r") as sam:
         with open(basename+"_species.csv","w") as fw:
@@ -74,7 +102,7 @@ if __name__ == "__main__":
                         identity = (seqlen-mismatch)/seqlen
                         dbmatch = linesplit[2] #match in database
                         readname = linesplit[0]
-                        if identity >= id_threshold :
+                        if identity >= idpercent and seqlen > minlen:
                             print(specie_taxonomy[dbmatch], identity, seqlen)
                             fw.write(specie_taxonomy[dbmatch]+", "+str(dbmatch)+", "+str(identity)+", "+str(seqlen)+", "+seq+"\n")
 
