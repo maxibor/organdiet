@@ -5,6 +5,8 @@ params.reads = "$baseDir/data/*_R{1,2}.fastq.gz"
 params.ctrl = "$baseDir/data/control/*_R{1,2}.fastq.gz"
 params.outdir = "$baseDir/results"
 params.btindex = "$baseDir/data/db/bowtie/organellome"
+params.hgindex = "/home/maxime/databases/hg19/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome"
+params.nrdb = "/home/maxime/databases/nr_diamond/nr"
 scriptdir = "$baseDir/bin/"
 py_specie = scriptdir+"process_mapping.py"
 
@@ -79,6 +81,7 @@ process adapter_removal {
 
     output:
     set val(name), file('*.collapsed.fastq') into trimmed_reads
+    file '*.settings' into adapter_removal_results
 
 
     script:
@@ -170,6 +173,30 @@ process bowtie_align_to_ctrl {
     """
 }
 
+process bowtie_align_to_human_genome {
+
+    cpus = 18
+    tag "$name"
+    publishDir "${params.outdir}/human_removed", mode: 'copy',
+        saveAs: {filename ->
+            if (filename.indexOf(".fastq") > 0)  "./$filename"
+        }
+
+    input:
+    set val(name), file(reads) from fq_unaligned_ctrl_reads
+
+    output:
+    set val(name), file('*.fastq') into fq_unaligned_human_reads
+    //something
+
+    script:
+
+    fq_out = name+"_human_unal.fastq"
+    """
+    bowtie2 -x ${params.hgindex} -U $reads --no-sq --threads ${task.cpus} --un $fq_out
+    """
+}
+
 /*
 * STEP 5 - Align on organellome database
 */
@@ -185,7 +212,7 @@ process bowtie_align_to_organellome_db {
         }
 
     input:
-    set val(name), file(reads) from fq_unaligned_ctrl_reads
+    set val(name), file(reads) from fq_unaligned_human_reads
 
     output:
     set val(name), file('*.sam') into aligned_reads
@@ -194,7 +221,7 @@ process bowtie_align_to_organellome_db {
 
     sam_out = name+".sam"
     """
-    bowtie2 -x ${params.btindex} -U $reads --end-to-end --threads ${task.cpus} -S $sam_out
+    bowtie2 -x ${params.btindex} -U $reads --end-to-end --threads ${task.cpus} -S $sam_out -a
     """
 }
 
@@ -227,18 +254,18 @@ process extract_mapped_reads {
 * STEP 6 - Get specie composition
 */
 
-process mapped_reads_to_species {
+process extract_best_reads {
     tag "$name"
 
-
-    publishDir "${params.outdir}/taxonomic_compositions", mode: 'copy',
-        saveAs: {filename ->
-            if (filename.indexOf(".csv") > 0)  "./$filename"
-        }
+    //
+    // publishDir "${params.outdir}/taxonomic_compositions", mode: 'copy',
+    //     saveAs: {filename ->
+    //         if (filename.indexOf(".csv") > 0)  "./$filename"
+    //     }
     input:
         set val(name), file(sam) from mapped_reads
     output:
-        set val(name), file("*.csv") into taxo_compo
+        set val(name), file("*.best.aligned.fa") into best_match
 
 
 
@@ -246,5 +273,98 @@ process mapped_reads_to_species {
         """
         python3 $py_specie $sam
         """
+}
 
+process diamond_align_to_nr {
+    tag "$name"
+    cpus = 18
+
+    publishDir "${params.outdir}/nr_alignment", mode: 'copy',
+        saveAs: {filename ->
+            if (filename.indexOf(".diamond.out") > 0)  "./$filename"
+        }
+
+    input:
+        set val(name), file(best_fa) from best_match
+    output:
+        set val(name), file("*.diamond.out") into nr_aligned
+
+    script:
+        diamond_out = name+".diamond.out"
+        """
+        diamond blastx -d ${params.nrdb} -q $best_fa -o $diamond_out -f 6 -p ${task.cpus}
+        """
+}
+
+process lca_assignation {
+    tag "$name"
+
+    publishDir "${params.outdir}/taxonomy", mode: 'copy',
+        saveAs: {filename ->
+            if (filename.indexOf(".basta.out") > 0)  "./$filename"
+        }
+
+    beforeScript "set +u; source activate py27"
+    afterScript "set +u; source deactivate py27"
+
+    input:
+        set val(name), file(aligned_nr) from nr_aligned
+    output:
+        set val(name), file("*.basta.out") into lca_result
+
+    script:
+        basta_name = name+".basta.out"
+        """
+        basta sequence $aligned_nr $basta_name prot -m 1 -n 10 -a True -i 99
+        """
+}
+
+process visual_results {
+    tag "$name"
+
+    publishDir "${params.outdir}/krona", mode: 'copy',
+        saveAs: {filename ->  "./$filename"}
+
+    beforeScript "set +u; source activate py27"
+    afterScript "set +u; source deactivate py27"
+
+    input:
+        set val(name), file(basta_res) from lca_result
+    output:
+        set val(name), file("*.krona.html") into krona_res
+
+    script:
+        krona_out = name+".krona.html"
+        """
+        basta2krona.py $basta_res $krona_out
+        """
+}
+
+process multiqc {
+    tag "$prefix"
+    publishDir "${params.outdir}/MultiQC", mode: 'copy'
+
+    beforeScript "set +u; source activate py27"
+    afterScript "set +u; source deactivate py27"
+
+    input:
+    file (fastqc:'fastqc/*') from fastqc_results.collect()
+    file (adapter_removal:'adapter_removal/*') from adapter_removal_results
+    // file ('samtools/*') from samtools_stats.collect()
+    // file ('picard/*') from picard_reports.collect()
+    // file ('deeptools/*') from deepTools_multiqc.collect()
+    // file ('phantompeakqualtools/*') from spp_out_mqc.collect()
+    // file ('phantompeakqualtools/*') from calculateNSCRSC_results.collect()
+    // file ('software_versions/*') from software_versions_yaml.collect()
+
+    output:
+    file '*multiqc_report.html' into multiqc_report
+    file '*_data' into multiqc_data
+    file '.command.err' into multiqc_stderr
+
+    script:
+    prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc/'
+    """
+    multiqc -f adapter_removal fastqc
+    """
 }

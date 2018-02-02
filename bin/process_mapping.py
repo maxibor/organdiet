@@ -17,7 +17,7 @@ def get_args():
     help="path to (existing) output directory")
     parser.add_argument(
     '-minlen',
-    default=30,
+    default=28,
     help="Minimum length of match to report")
     parser.add_argument(
     '-idpercent',
@@ -87,8 +87,9 @@ if __name__ == "__main__":
     specie_taxonomy = pickle.load(fileObject)
     basename = get_basename(mysam)
     with open(mysam, "r") as sam:
-        with open(basename+"_species.csv","w") as fw:
-            fw.write("specie, ncbi_id, identity_percentage, match_length, sequence\n")
+        with open(basename+".best.aligned.fa","w") as fw:
+        # with open(basename+"_species.fa","w") as fw:
+            # fw.write("specie, ncbi_id, identity_percentage, match_length, sequence\n")
             for line in sam:
                 linestrip = line.rstrip()
                 linesplit = linestrip.split("\t")
@@ -100,19 +101,14 @@ if __name__ == "__main__":
 
                         seqlen = len(seq) # length of aligned read
                         identity = (seqlen-mismatch)/seqlen
-                        dbmatch = linesplit[2] #match in database
+                        dbmatch = linesplit[2] #match in database, NCBI id
                         readname = linesplit[0]
                         if identity >= idpercent and seqlen > minlen:
-                            print(specie_taxonomy[dbmatch], identity, seqlen)
-                            fw.write(specie_taxonomy[dbmatch]+", "+str(dbmatch)+", "+str(identity)+", "+str(seqlen)+", "+seq+"\n")
+                            # print(specie_taxonomy[dbmatch], identity, seqlen)
+                            # fw.write(specie_taxonomy[dbmatch]+", "+str(dbmatch)+", "+str(identity)+", "+str(seqlen)+", "+seq+"\n")
 
-                    # if dbmatch not in matchdict.keys():
-                    #     matchdict[dbmatch] = [identity]
-                    # else :
-                    #     matchdict[dbmatch].append(identity)
-                    #
-                    #     if readname not in readdict.keys():
-                    #         readdict[readname] = [(dbmatch, specie_taxonomy[dbmatch], identity)]
-                    #     else:
-                    #         readdict[readname].append((dbmatch, identity))
-    # pprint(readdict)
+                            if readname not in readdict.keys():
+                                readdict[readname] = [seq]
+                                fw.write(">"+readname+"\n"+seq+"\n")
+
+    pprint(readdict)
