@@ -2,7 +2,7 @@
 
 <img src="./img/logo.png" width="200">
 
-**Currently in development**
+**Currently in development. Until now, can only run on a Linux based machine**
 
 ## Introduction
 
@@ -10,9 +10,18 @@
 
 # Dependancies
 
-- [Netxflow](https://www.nextflow.io/)  
-- TO ADD
+- [Conda](https://conda.io/miniconda.html)  
+- [BASTA](https://github.com/timkahlke/BASTA) with installed `prot` database. 
+
+# Installation
+
+```
+git clone https://github.com/maxibor/organdiet.git
+cd organdiet
+conda env create -f environment.yml
+source activate organdiet
+```
 
 # Usage
 
-`nextflow run ....`
+`nextflow run organdiet.nf`

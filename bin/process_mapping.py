@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import argparse
-import requests
 from pprint import pprint
-import pickle
+# import pickle
+# import requests
 
 def get_args():
     '''This function parses and return arguments passed in'''
@@ -45,7 +45,7 @@ def request_to_specie(ncbi_id):
         specie(str) specie name
     """
 
-    request = "http:    idpercent = 0.99//taxonomy.jgi-psf.org/sc/accession/"+ncbi_id
+    request = "http://taxonomy.jgi-psf.org/sc/accession/"+ncbi_id
     response = requests.get(request)
     answer = response.text
     specie = answer.split(":")[-1]
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     matchdict = {}
     readdict = {}
 
-    fileObject = open("/home/maxime/Documents/ulug_depe/scripts/organdiet/data/db/specie_taxonomy.pickle",'rb')
+    # fileObject = open("/home/maxime/Documents/ulug_depe/scripts/organdiet/data/db/specie_taxonomy.pickle",'rb')
     specie_taxonomy = pickle.load(fileObject)
     basename = get_basename(mysam)
     with open(mysam, "r") as sam:
