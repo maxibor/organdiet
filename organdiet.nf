@@ -5,10 +5,11 @@ params.reads = "$baseDir/data/*_R{1,2}.fastq.gz"
 params.ctrl = "$baseDir/data/control/*_R{1,2}.fastq.gz"
 params.outdir = "$baseDir/results"
 params.btindex = "$baseDir/data/db/bowtie/organellome"
-params.hgindex = "/home/maxime/databases/hg19/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome"
-params.nrdb = "/home/maxime/databases/nr_diamond/nr"
+params.multiqc_conf="$baseDir/.multiqc_config.yaml"
 scriptdir = "$baseDir/bin/"
 py_specie = scriptdir+"process_mapping.py"
+params.hgindex = "/home/maxime/databases/hg19/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome"
+params.nrdb = "/home/maxime/databases/nr_diamond/nr"
 
 
 nthreads = 24
@@ -81,6 +82,8 @@ process adapter_removal {
 
     output:
     set val(name), file('*.collapsed.fastq') into trimmed_reads
+    set val(name), file('*.collapsed.fastq') into trimmed_reads_to_qc
+    file '*_fastqc.{zip,html}' into fastqc_results_after_trim
     file '*.settings' into adapter_removal_results
 
 
@@ -116,6 +119,7 @@ process adapter_removal_ctrl {
     rename 's/(.collapsed)/\$1.fastq/' *
     """
 }
+
 
 /*
 * STEP 3 - Build Bowtie DB of control
@@ -161,6 +165,7 @@ process bowtie_align_to_ctrl {
 
     output:
     set val(name), file('*.fastq') into fq_unaligned_ctrl_reads
+    file("*.metrics") into ctrl_aln_metrics
     //something
 
     script:
@@ -168,8 +173,9 @@ process bowtie_align_to_ctrl {
     index_base = bt_index.toString().tokenize(' ')[0].tokenize('.')[0]
     sam_out = name+".sam"
     fq_out = name+"_unal.fastq"
+    metrics = name+".metrics"
     """
-    bowtie2 -x $index_base -U $reads --no-sq --threads ${task.cpus} --un $fq_out
+    bowtie2 -x $index_base -U $reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
     """
 }
 
@@ -187,13 +193,15 @@ process bowtie_align_to_human_genome {
 
     output:
     set val(name), file('*.fastq') into fq_unaligned_human_reads
+    file("*.metrics") into human_aln_metrics
     //something
 
     script:
 
     fq_out = name+"_human_unal.fastq"
+    metrics = name+".metrics"
     """
-    bowtie2 -x ${params.hgindex} -U $reads --no-sq --threads ${task.cpus} --un $fq_out
+    bowtie2 -x ${params.hgindex} -U $reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
     """
 }
 
@@ -216,12 +224,14 @@ process bowtie_align_to_organellome_db {
 
     output:
     set val(name), file('*.sam') into aligned_reads
+    file("*.metrics") into organellome_aln_metrics
 
     script:
 
     sam_out = name+".sam"
+    metrics = name+".metrics"
     """
-    bowtie2 -x ${params.btindex} -U $reads --end-to-end --threads ${task.cpus} -S $sam_out -a
+    bowtie2 -x ${params.btindex} -U $reads --end-to-end --threads ${task.cpus} -S $sam_out -a 2> $metrics
     """
 }
 
@@ -348,8 +358,12 @@ process multiqc {
     afterScript "set +u; source deactivate py27"
 
     input:
-    file (fastqc:'fastqc/*') from fastqc_results.collect()
-    file (adapter_removal:'adapter_removal/*') from adapter_removal_results
+    file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
+    file ('adapter_removal/*') from adapter_removal_results.collect()
+    file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
+    file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
+    file('aligned_to_human/*') from human_aln_metrics.collect()
+    file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
     // file ('samtools/*') from samtools_stats.collect()
     // file ('picard/*') from picard_reports.collect()
     // file ('deeptools/*') from deepTools_multiqc.collect()
@@ -365,6 +379,6 @@ process multiqc {
     script:
     prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc/'
     """
-    multiqc -f adapter_removal fastqc
+    multiqc -f -d fastqc_before adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
     """
 }
