@@ -281,7 +281,7 @@ process extract_best_reads {
 
     script:
         """
-        python3 $py_specie $sam
+        python $py_specie $sam
         """
 }
 
@@ -314,8 +314,8 @@ process lca_assignation {
             if (filename.indexOf(".basta.out") > 0)  "./$filename"
         }
 
-    beforeScript "set +u; source activate py27"
-    afterScript "set +u; source deactivate py27"
+    // beforeScript "set +u; source activate py27"
+    // afterScript "set +u; source deactivate py27"
 
     input:
         set val(name), file(aligned_nr) from nr_aligned
@@ -335,8 +335,8 @@ process visual_results {
     publishDir "${params.outdir}/krona", mode: 'copy',
         saveAs: {filename ->  "./$filename"}
 
-    beforeScript "set +u; source activate py27"
-    afterScript "set +u; source deactivate py27"
+    // beforeScript "set +u; source activate py27"
+    // afterScript "set +u; source deactivate py27"
 
     input:
         set val(name), file(basta_res) from lca_result
@@ -354,8 +354,8 @@ process multiqc {
     tag "$prefix"
     publishDir "${params.outdir}/MultiQC", mode: 'copy'
 
-    beforeScript "set +u; source activate py27"
-    afterScript "set +u; source deactivate py27"
+    // beforeScript "set +u; source activate py27"
+    // afterScript "set +u; source deactivate py27"
 
     input:
     file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
@@ -379,6 +379,6 @@ process multiqc {
     script:
     prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc/'
     """
-    multiqc -f -d fastqc_before adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+    multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
     """
 }

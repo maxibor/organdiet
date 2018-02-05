@@ -84,7 +84,7 @@ if __name__ == "__main__":
     readdict = {}
 
     # fileObject = open("/home/maxime/Documents/ulug_depe/scripts/organdiet/data/db/specie_taxonomy.pickle",'rb')
-    specie_taxonomy = pickle.load(fileObject)
+    # specie_taxonomy = pickle.load(fileObject)
     basename = get_basename(mysam)
     with open(mysam, "r") as sam:
         with open(basename+".best.aligned.fa","w") as fw:
