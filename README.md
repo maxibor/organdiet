@@ -1,12 +1,11 @@
-# OrganDiet
 
-<img src="./img/logo.png" width="75">
-
-**Currently in development. For now, you can only run it on a Linux based machine**
+<img src="./img/logo.png" width="150">
 
 ## Introduction
 
 **OrganDiet** is a [Nextflow](https://www.nextflow.io/) pipeline to infer a human diet based on [shotgun metagenomics](https://en.wikipedia.org/wiki/Metagenomics#Shotgun_metagenomics) data.
+
+**Currently in development. For now, you can only run it on a Linux based machine**
 
 # Dependancies
 
