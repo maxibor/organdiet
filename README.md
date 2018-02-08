@@ -55,3 +55,7 @@ From NCBI [Refseq organelles genomes](https://www.ncbi.nlm.nih.gov/genome/organe
 ```
 nextflow run organdiet.nf --reads '/path/to/reads/*_R{1,2}.fastq.gz' --ctrl '/path/to/negative/control/reads/*_R{1,2}.fastq.gz' --btindex '/path/to/bowtie2/index/organellome' --hgindex 'hs_genome/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome' --nrdb 'nr_diamond_db/nr' -with-report run_report.html -with-timeline timeline_report.html
 ```
+
+# The Pipeline workflow
+
+![](./img/flowchart.png)
