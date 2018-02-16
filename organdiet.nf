@@ -2,7 +2,9 @@
 
 // File locations - default for testing
 params.reads = "$baseDir/data/*_R{1,2}.fastq.gz"
-params.ctrl = "$baseDir/data/control/*_R{1,2}.fastq.gz"
+// params.ctrl = "$baseDir/data/control/*_R{1,2}.fastq.gz"
+params.ctrl = "none"
+
 
 // Result directory
 params.outdir = "$baseDir/results"
@@ -105,29 +107,31 @@ process adapter_removal {
         """
 }
 
-process adapter_removal_ctrl {
+if (params.ctrl != "none"){
+    process adapter_removal_ctrl {
 
-    cpus = 8
-    // cache false
-    tag "$name"
-    publishDir "${params.outdir}/trimmed", mode: 'copy',
-        saveAs: {filename ->
-            if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
-            else if (filename.indexOf(".settings") > 0) "logs/$filename"
-        }
+        cpus = 8
+        // cache false
+        tag "$name"
+        publishDir "${params.outdir}/trimmed", mode: 'copy',
+            saveAs: {filename ->
+                if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
+                else if (filename.indexOf(".settings") > 0) "logs/$filename"
+            }
 
-    input:
-        set val(name), file(reads) from raw_ctrl_trimming
+        input:
+            set val(name), file(reads) from raw_ctrl_trimming
 
-    output:
-        set val(name), file('*.collapsed.fastq') into trimmed_ctrl
+        output:
+            set val(name), file('*.collapsed.fastq') into trimmed_ctrl
 
-    script:
-        """
-        AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --threads ${task.cpus}
-        fastqc -q *.collapsed
-        rename 's/(.collapsed)/\$1.fastq/' *
-        """
+        script:
+            """
+            AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --threads ${task.cpus}
+            fastqc -q *.collapsed
+            rename 's/(.collapsed)/\$1.fastq/' *
+            """
+    }
 }
 
 
@@ -135,83 +139,121 @@ process adapter_removal_ctrl {
 * STEP 3 - Build Bowtie DB of control
 */
 
-process ctr_bowtie_db {
-    cpus = 12
-    // cache false
+if (params.ctrl != "none"){
+    process ctr_bowtie_db {
+        cpus = 12
+        // cache false
 
 
-    input:
-        file(read) from trimmed_ctrl
+        input:
+            file(read) from trimmed_ctrl
 
-    output:
-        file "ctrl_index*" into ctrl_index
-        """
-        sed '/^@/!d;s//>/;N' $read > ctrl.fa
-        bowtie2-build --threads ${task.cpus} ctrl.fa ctrl_index
-        """
+        output:
+            file "ctrl_index*" into ctrl_index
+            """
+            sed '/^@/!d;s//>/;N' $read > ctrl.fa
+            bowtie2-build --threads ${task.cpus} ctrl.fa ctrl_index
+            """
+    }
 }
+
 
 
 /*
 * STEP 4 - Align on control, output unaligned reads
 */
 
-process bowtie_align_to_ctrl {
+if (params.ctrl != "none"){
+    process bowtie_align_to_ctrl {
 
-    cpus = 18
-    // cache false
-    tag "$name"
-    publishDir "${params.outdir}/control_removed", mode: 'copy',
-        saveAs: {filename ->
-            if (filename.indexOf(".fastq") > 0)  "./$filename"
-        }
+        cpus = 18
+        // cache false
+        tag "$name"
+        publishDir "${params.outdir}/control_removed", mode: 'copy',
+            saveAs: {filename ->
+                if (filename.indexOf(".fastq") > 0)  "./$filename"
+            }
 
-    input:
-        set val(name), file(reads) from trimmed_reads
-        file bt_index from ctrl_index.collect()
+        input:
+            set val(name), file(reads) from trimmed_reads
+            file bt_index from ctrl_index.collect()
 
-    output:
-        set val(name), file('*.fastq') into fq_unaligned_ctrl_reads
-        file("*.metrics") into ctrl_aln_metrics
+        output:
+            set val(name), file('*.fastq') into fq_unaligned_ctrl_reads
+            file("*.metrics") into ctrl_aln_metrics
 
-    script:
-        sam_out = name+".sam"
-        fq_out = name+"_unal.fastq"
-        metrics = name+".metrics"
-        """
-        bowtie2 -x ctrl_index -U $reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
-        """
+        script:
+            sam_out = name+".sam"
+            fq_out = name+"_unal.fastq"
+            metrics = name+".metrics"
+            """
+            bowtie2 -x ctrl_index -U $reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
+            """
+    }
 }
+
 
 /*
 * STEP 5 - Align on human genome, output unaligned reads
 */
 
+if (params.ctrl != "none"){
+    process bowtie_align_to_human_genome {
 
-process bowtie_align_to_human_genome {
+        cpus = 18
+        // cache false
+        tag "$name"
+        publishDir "${params.outdir}/human_removed", mode: 'copy',
+            saveAs: {filename ->
+                if (filename.indexOf(".fastq") > 0)  "./$filename"
+            }
 
-    cpus = 18
-    // cache false
-    tag "$name"
-    publishDir "${params.outdir}/human_removed", mode: 'copy',
-        saveAs: {filename ->
-            if (filename.indexOf(".fastq") > 0)  "./$filename"
-        }
+        input:
+            set val(name), file(reads) from fq_unaligned_ctrl_reads
 
-    input:
-        set val(name), file(reads) from fq_unaligned_ctrl_reads
+        output:
+            set val(name), file('*.fastq') into fq_unaligned_human_reads
+            file("*.metrics") into human_aln_metrics
 
-    output:
-        set val(name), file('*.fastq') into fq_unaligned_human_reads
-        file("*.metrics") into human_aln_metrics
+        script:
+            fq_out = name+"_human_unal.fastq"
+            metrics = name+".metrics"
+            """
+            bowtie2 -x ${params.hgindex} -U $reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
+            """
+    }
+} else {
+    process bowtie_align_to_human_genome {
 
-    script:
-        fq_out = name+"_human_unal.fastq"
-        metrics = name+".metrics"
-        """
-        bowtie2 -x ${params.hgindex} -U $reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
-        """
+        cpus = 18
+        // cache false
+        tag "$name"
+        publishDir "${params.outdir}/human_removed", mode: 'copy',
+            saveAs: {filename ->
+                if (filename.indexOf(".fastq") > 0)  "./$filename"
+            }
+
+        input:
+            set val(name), file(reads) from trimmed_reads
+
+        output:
+            set val(name), file('*.fastq') into fq_unaligned_human_reads
+            file("*.metrics") into human_aln_metrics
+
+        script:
+            fq_out = name+"_human_unal.fastq"
+            metrics = name+".metrics"
+            """
+            bowtie2 -x ${params.hgindex} -U $reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
+            """
+    }
 }
+
+
+
+
+
+
 
 /*
 * STEP 6 - Align on organellome database
