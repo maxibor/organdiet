@@ -1,7 +1,8 @@
 #!/usr/bin/env nextflow
 
 // File locations - default for testing
-params.reads = "$baseDir/data/*_R{1,2}.fastq.gz"
+// params.reads = "$baseDir/data/*_R{1,2}.fastq.gz"
+params.reads = "/home/maxime/Documents/data/anna_africa/*_{1,2}.fastq.gz"
 // params.ctrl = "$baseDir/data/control/*_R{1,2}.fastq.gz"
 params.ctrl = "none"
 
@@ -11,13 +12,16 @@ params.outdir = "$baseDir/results"
 
 // Script and configurations
 params.multiqc_conf="$baseDir/.multiqc_config.yaml"
+params.aligner2 = "centrifuge"
 scriptdir = "$baseDir/bin/"
 py_specie = scriptdir+"process_mapping.py"
+recentrifuge = scriptdir+"recentrifuge/recentrifuge.py"
 
 // Databases locations
-params.btindex = "$baseDir/data/db/bowtie/organellome"
-params.hgindex = "/mnt/ntfs/databases/hg19/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome"
+params.btindex = "/home/maxime/Documents/db/organellome/bowtie2index/organellome"
+params.hgindex = "/home/maxime/Documents/db/hs_genome/Homo_sapiens_Ensembl_GRCh37/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome"
 params.nrdb = "/mnt/ntfs/databases/nr_diamond/nr"
+params.centrifugedb = "/home/maxime/Documents/db/centrifuge/nt/nt"
 
 // BASTA (LCA) parameters
 params.bastamode = "majority"
@@ -31,11 +35,13 @@ Channel
     .fromFilePairs( params.reads, size: 2 )
     .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}" }
 	.into { raw_reads_fastqc; raw_reads_trimming }
+if (params.ctrl != "none"){
+    Channel
+        .fromFilePairs(params.ctrl, size: 2)
+        .ifEmpty { exit 1, "Cannot find any reads matching: ${params.ctrl}"}
+        .into { raw_ctrl_fastqc; raw_ctrl_trimming }
 
-Channel
-    .fromFilePairs(params.ctrl, size: 2)
-    .ifEmpty { exit 1, "Cannot find any reads matching: ${params.ctrl}"}
-    .into { raw_ctrl_fastqc; raw_ctrl_trimming }
+}
 
 
 /*
@@ -60,21 +66,23 @@ process fastqc {
         """
 }
 
+if (params.ctrl != "none"){
+    process fastqc_control {
+        // cache false
+        tag "$name"
+        publishDir "${params.outdir}/fastqc", mode: 'copy',
+           saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
 
-process fastqc_control {
-    // cache false
-    tag "$name"
-    publishDir "${params.outdir}/fastqc", mode: 'copy',
-       saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
+        input:
+            set val(name), file(reads) from raw_ctrl_fastqc
 
-    input:
-        set val(name), file(reads) from raw_ctrl_fastqc
-
-    script:
-        """
-        fastqc -q $reads
-        """
+        script:
+            """
+            fastqc -q $reads
+            """
+    }
 }
+
 
 /*
  * STEP 2 - AdapterRemoval
@@ -198,7 +206,7 @@ if (params.ctrl != "none"){
 */
 
 if (params.ctrl != "none"){
-    process bowtie_align_to_human_genome {
+    process bowtie_align_to_human_genome_no_ctrl {
 
         cpus = 18
         // cache false
@@ -334,87 +342,140 @@ process extract_best_reads {
 * STEP 9 - Align on NR database
 */
 
-process diamond_align_to_nr {
-    tag "$name"
-    cpus = 18
+if (params.aligner2 == "diamond"){
+    process diamond_align_to_nr {
+        tag "$name"
+        cpus = 18
 
 
-    publishDir "${params.outdir}/nr_alignment", mode: 'copy',
-        saveAs: {filename ->
-            if (filename.indexOf(".diamond.out") > 0)  "./$filename"
-        }
+        publishDir "${params.outdir}/nr_alignment", mode: 'copy',
+            saveAs: {filename ->
+                if (filename.indexOf(".diamond.out") > 0)  "./$filename"
+            }
 
-    input:
-        set val(name), file(best_fa) from best_match
+        input:
+            set val(name), file(best_fa) from best_match
 
-    output:
-        set val(name), file("*.diamond.out") into nr_aligned
+        output:
+            set val(name), file("*.diamond.out") into nr_aligned
 
-    script:
-        diamond_out = name+".diamond.out"
-        """
-        diamond blastx -d ${params.nrdb} -q $best_fa -o $diamond_out -f 6 -p ${task.cpus}
-        """
+        script:
+            diamond_out = name+".diamond.out"
+            """
+            diamond blastx -d ${params.nrdb} -q $best_fa -o $diamond_out -f 6 -p ${task.cpus}
+            """
+    }
+} else if (params.aligner2 == "centrifuge"){
+
+    process centrifuge_align_to_nr{
+        tag "$name"
+        cpus = 1
+
+        publishDir "${params.outdir}/nr_alignment", mode: 'copy',
+            saveAs: {filename ->
+                if (filename.indexOf(".centrifuge.out") > 0)  "./$filename"
+                if (filename.indexOf("_centrifuge_report.tsv") > 0)  "./$filename"
+            }
+
+        input:
+            set val(name), file(best_fa) from best_match
+
+        output:
+            file("*.centrifuge.out") into nr_aligned
+
+        script:
+            centrifuge_out = name+".centrifuge.out"
+            centrifuge_report = name+"_centrifuge_report.tsv"
+            """
+            centrifuge -x ${params.centrifugedb} -r $best_fa -f --report-file $centrifuge_report -S $centrifuge_out
+            """
+    }
+
+    process recentrifuge {
+        tag tag "${centrifuge_aligned[0].baseName}"
+
+        beforeScript "set +u; source activate py36"
+        afterScript "set +u; source deactivate py36"
+
+         publishDir "${params.outdir}/krona", mode: 'copy'
+
+        input:
+            file centrifuge_aligned from nr_aligned.toList()
+
+        output:
+            file("recentrifuge_result.html") into recentrifuge_result
+
+        script:
+            allfiles = centrifuge_aligned.join(" -f ")
+            """
+            $recentrifuge -f $allfiles -o recentrifuge_result.html
+            """
+    }
 }
 
-/*
-* STEP 10 - Assign LCA
-*/
 
-process lca_assignation {
-    tag "$name"
+if (params.aligner2 == "diamond"){
+
+    /*
+    * STEP 10 - Assign LCA
+    */
+
+    process lca_assignation {
+        tag "$name"
 
 
-    publishDir "${params.outdir}/taxonomy", mode: 'copy',
-        saveAs: {filename ->
-            if (filename.indexOf(".basta.out") > 0)  "./$filename"
-        }
+        publishDir "${params.outdir}/taxonomy", mode: 'copy',
+            saveAs: {filename ->
+                if (filename.indexOf(".basta.out") > 0)  "./$filename"
+            }
 
-    // beforeScript "set +u; source activate py27"
-    // afterScript "set +u; source deactivate py27"
+        // beforeScript "set +u; source activate py27"
+        // afterScript "set +u; source deactivate py27"
 
-    input:
-        set val(name), file(aligned_nr) from nr_aligned
+        input:
+            set val(name), file(aligned_nr) from nr_aligned
 
-    output:
-        set val(name), file("*.basta.out") into lca_result
+        output:
+            set val(name), file("*.basta.out") into lca_result
 
-    script:
-        basta_name = name+".basta.out"
-        sorted_nr = name+"_diamond_nr.sorted"
-        """
-        sort -k3 -r -n $aligned_nr > $sorted_nr
-        basta sequence $sorted_nr $basta_name prot -t ${params.bastamode} -m 1 -n ${params.bastanum} -i ${params.bastaid}
-        """
+        script:
+            basta_name = name+".basta.out"
+            sorted_nr = name+"_diamond_nr.sorted"
+            """
+            sort -k3 -r -n $aligned_nr > $sorted_nr
+            basta sequence $sorted_nr $basta_name prot -t ${params.bastamode} -m 1 -n ${params.bastanum} -i ${params.bastaid}
+            """
+    }
+
+
+    /*
+    * STEP 11 - Generate Krona output
+    */
+
+    process visual_results {
+        tag "$name"
+
+
+        publishDir "${params.outdir}/krona", mode: 'copy',
+            saveAs: {filename ->  "./$filename"}
+
+        // beforeScript "set +u; source activate py27"
+        // afterScript "set +u; source deactivate py27"
+
+        input:
+            set val(name), file(basta_res) from lca_result
+
+        output:
+            set val(name), file("*.krona.html") into krona_res
+
+        script:
+            krona_out = name+".krona.html"
+            """
+            basta2krona.py $basta_res $krona_out
+            """
+    }
 }
 
-
-/*
-* STEP 11 - Generate Krona output
-*/
-
-process visual_results {
-    tag "$name"
-
-
-    publishDir "${params.outdir}/krona", mode: 'copy',
-        saveAs: {filename ->  "./$filename"}
-
-    // beforeScript "set +u; source activate py27"
-    // afterScript "set +u; source deactivate py27"
-
-    input:
-        set val(name), file(basta_res) from lca_result
-
-    output:
-        set val(name), file("*.krona.html") into krona_res
-
-    script:
-        krona_out = name+".krona.html"
-        """
-        basta2krona.py $basta_res $krona_out
-        """
-}
 
 /*
 * STEP 12 - Generate run summary
@@ -432,9 +493,11 @@ process multiqc {
         file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
         file ('adapter_removal/*') from adapter_removal_results.collect()
         file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
-        file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
         file('aligned_to_human/*') from human_aln_metrics.collect()
         file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
+        if (params.ctrl != "none"){
+            file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
+        }
 
     output:
         file '*multiqc_report.html' into multiqc_report
@@ -443,7 +506,14 @@ process multiqc {
 
     script:
         prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc/'
-        """
-        multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
-        """
+        if (params.ctrl != "none"){
+            """
+            multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+            """
+        } else {
+            """
+            multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+            """
+        }
+
 }
