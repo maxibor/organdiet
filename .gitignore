@@ -1,6 +1,9 @@
 *.log*
 bin/recentrifuge/taxdump/*
+bin/BASTA/taxonomy/*
 results/*
 data/*
 .nextflow/*
 work/*
+flowchart.*
+run_report.*
