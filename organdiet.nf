@@ -13,7 +13,7 @@ params.outdir = "$baseDir/results"
 // Script and configurations
 params.adna = true
 params.multiqc_conf="$baseDir/.multiqc_config.yaml"
-params.aligner2 = "centrifuge"
+params.aligner2 = "diamond"
 scriptdir = "$baseDir/bin/"
 py_specie = scriptdir+"process_mapping.py"
 recentrifuge = scriptdir+"recentrifuge/recentrifuge.py"
@@ -98,11 +98,7 @@ if (params.adna == true){
         cpus = 6
         // cache false
         tag "$name"
-        publishDir "${params.outdir}/trimmed", mode: 'copy',
-            saveAs: {filename ->
-                if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
-                else if (filename.indexOf(".settings") > 0) "logs/$filename"
-            }
+        publishDir "${params.outdir}/trimmed", mode: 'copy'
 
         input:
             set val(name), file(reads) from raw_reads_trimming
@@ -110,8 +106,8 @@ if (params.adna == true){
         output:
             set val(name), file('*.truncated.fastq') into truncated_reads
             set val(name), file('*.collapsed.fastq') into collapsed_reads
+            set val(name), file("*.settings") into adapter_removal_results
             file '*_fastqc.{zip,html}' into fastqc_results_after_trim
-            file '*.settings' into adapter_removal_results
 
 
 
@@ -121,6 +117,7 @@ if (params.adna == true){
             col_out = name+".collapsed.fastq"
             """
             AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus}
+            fastqc -q *.collapsed*q
             """
     }
 
@@ -130,11 +127,7 @@ if (params.adna == true){
             cpus = 8
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/trimmed", mode: 'copy',
-                saveAs: {filename ->
-                    if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
-                    else if (filename.indexOf(".settings") > 0) "logs/$filename"
-                }
+            publishDir "${params.outdir}/trimmed", mode: 'copy'
 
             input:
                 set val(name), file(reads) from raw_ctrl_trimming
@@ -142,6 +135,7 @@ if (params.adna == true){
             output:
                 set val(name), file('*.collapsed.fastq') into collapsed_reads_ctrl
                 set val(name), file(out1), file(out2) into truncated_reads_ctrl
+
 
             script:
                 out1 = name+".pair1.truncated.fastq"
@@ -158,11 +152,7 @@ if (params.adna == true){
         cpus = 6
         // cache false
         tag "$name"
-        publishDir "${params.outdir}/trimmed", mode: 'copy',
-            saveAs: {filename ->
-                if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
-                else if (filename.indexOf(".settings") > 0) "logs/$filename"
-            }
+        publishDir "${params.outdir}/trimmed", mode: 'copy'
 
         input:
             set val(name), file(reads) from raw_reads_trimming
@@ -170,8 +160,8 @@ if (params.adna == true){
         output:
             // set val(name), file('*.truncated.fastq') into truncated_reads
             set val(name), file(out1), file(out2) into truncated_reads
+            set val(name), file("*.settings") into adapter_removal_results
             file '*_fastqc.{zip,html}' into fastqc_results_after_trim
-            file '*.settings' into adapter_removal_results
 
 
 
@@ -180,6 +170,7 @@ if (params.adna == true){
             out2 = name+".pair2.truncated.fastq"
             """
             AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --output1 $out1 --output2 $out2 --threads ${task.cpus}
+            fastqc -q *.truncated*
             """
     }
 
@@ -189,11 +180,7 @@ if (params.adna == true){
             cpus = 8
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/trimmed", mode: 'copy',
-                saveAs: {filename ->
-                    if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
-                    else if (filename.indexOf(".settings") > 0) "logs/$filename"
-                }
+            publishDir "${params.outdir}/trimmed", mode: 'copy'
 
             input:
                 set val(name), file(reads) from raw_ctrl_trimming
@@ -320,12 +307,15 @@ if (params.adna == true){
                 file bt_index from ctrl_index.collect()
 
             output:
-                set val(name), file('*.unal.fastq') into fq_unaligned_ctrl_reads
+                // set val(name), file('*.unal.fastq') into fq_unaligned_ctrl_reads
                 file("*.metrics") into ctrl_aln_metrics
+                set val(name), file(out1), file(out2) into fq_unaligned_ctrl_reads
 
             script:
                 sam_out = name+".sam"
                 fq_out = name+".unal.fastq"
+                out1=name+".unal.1.fastq"
+                out2=name+".unal.2.fastq"
                 metrics = name+".metrics"
                 """
                 bowtie2 -x ctrl_index -1 $trun_read1 -2 $trun_read2 --no-sq --threads ${task.cpus} --un-conc $fq_out 2> $metrics
@@ -345,40 +335,64 @@ if (params.adna == true){
 */
 
 if (params.ctrl != "none"){
-    process bowtie_align_to_human_genome_from_ctrl {
+    if (params.adna == true){
+        process bowtie_align_to_human_genome_from_ctrl_ancient_dna {
 
-        cpus = 18
-        // cache false
-        tag "$name"
-        publishDir "${params.outdir}/human_removed", mode: 'copy',
-            saveAs: {filename ->
-                if (filename.indexOf(".fastq") > 0)  "./$filename"
-            }
+            cpus = 18
+            // cache false
+            tag "$name"
+            publishDir "${params.outdir}/human_removed", mode: 'copy',
+                saveAs: {filename ->
+                    if (filename.indexOf(".fastq") > 0)  "./$filename"
+                }
 
-        input:
-            set val(name), file(reads) from fq_unaligned_ctrl_reads
+            input:
+                set val(name), file(reads) from fq_unaligned_ctrl_reads
 
-        output:
-            set val(name), file('*.human_unal.fastq') into fq_unaligned_human_reads
-            file("*.metrics") into human_aln_metrics
+            output:
+                set val(name), file('*.human_unal.fastq') into fq_unaligned_human_reads
+                file("*.metrics") into human_aln_metrics
 
-        script:
-            fq_out = name+".human_unal.fastq"
-            metrics = name+".metrics"
-            if (params.adna == true){
+            script:
+                fq_out = name+".human_unal.fastq"
+                metrics = name+".metrics"
                 """
                 bowtie2 -x ${params.hgindex} -U $reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
                 """
-            } else if (params.adna == false){
-                pair1 = name+".R1.fastq"
-                pair2 = name+".R2.fastq"
-                """
-                python fastq_split.py $reads
-                bowtie2 -x ${params.hgindex} -1 $pair1 -2 $pair2 --no-sq --threads ${task.cpus} --un-conc $fq_out 2> $metrics
-                """
-            }
 
+        }
+    } else {
+        process bowtie_align_to_human_genome_from_ctrl_modern_dna {
+
+            cpus = 18
+            // cache false
+            tag "$name"
+            publishDir "${params.outdir}/human_removed", mode: 'copy',
+                saveAs: {filename ->
+                    if (filename.indexOf(".fastq") > 0)  "./$filename"
+                }
+
+            input:
+                // set val(name), file(reads) from fq_unaligned_ctrl_reads
+                set val(name), file(trun_read1), file(trun_read2) from fq_unaligned_ctrl_reads
+
+            output:
+                // set val(name), file('*.human_unal.fastq') into fq_unaligned_human_reads
+                set val(name), file(out1), file(out2) into fq_unaligned_human_reads
+                file("*.metrics") into human_aln_metrics
+
+            script:
+                fq_out = name+".human_unal.fastq"
+                out1 = name+".human_unal.1.fastq"
+                out2 = name+".human_unal.2.fastq"
+                metrics = name+".metrics"
+                """
+                bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq --threads ${task.cpus} --un-conc $fq_out 2> $metrics
+                """
+
+        }
     }
+
 } else {
     if (params.adna == true){
         process bowtie_align_to_human_genome_no_control_ancient_dna {
@@ -425,11 +439,14 @@ if (params.ctrl != "none"){
             // set val(name), file(trun_reads) from truncated_reads.fromFilePairs("*.pair{1,2}.fastq")
 
             output:
-                set val(name), file('*.human_unal.fastq') into fq_unaligned_human_reads
+                // set val(name), file('*.human_unal.fastq') into fq_unaligned_human_reads
+                set val(name), file(out1), file(out2) into fq_unaligned_human_reads
                 file("*.metrics") into human_aln_metrics
 
             script:
                 fq_out = name+".human_unal.fastq"
+                out1 = name+".human_unal.1.fastq"
+                out2 = name+".human_unal.2.fastq"
                 metrics = name+".metrics"
                 """
                 bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq --threads ${task.cpus} --un-conc $fq_out 2> $metrics
@@ -449,41 +466,60 @@ if (params.ctrl != "none"){
 * STEP 6 - Align on organellome database
 */
 
+if (params.adna == true ){
+    process bowtie_align_to_organellome_db_ancient_dna {
 
-process bowtie_align_to_organellome_db {
+        cpus = 18
+        // cache false
+        tag "$name"
+        publishDir "${params.outdir}/alignments", mode: 'copy',
+            saveAs: {filename ->
+                if (filename.indexOf(".sam") > 0)  "./$filename"
+            }
 
-    cpus = 18
-    // cache false
-    tag "$name"
-    publishDir "${params.outdir}/alignments", mode: 'copy',
-        saveAs: {filename ->
-            if (filename.indexOf(".sam") > 0)  "./$filename"
-        }
+        input:
+            set val(name), file(reads) from fq_unaligned_human_reads
 
-    input:
-        set val(name), file(reads) from fq_unaligned_human_reads
+        output:
+            set val(name), file('*.sam') into aligned_reads
+            file("*.metrics") into organellome_aln_metrics
 
-    output:
-        set val(name), file('*.sam') into aligned_reads
-        file("*.metrics") into organellome_aln_metrics
-
-    script:
-        sam_out = name+".sam"
-        metrics = name+".metrics"
-        if (params.adna == true){
+        script:
+            sam_out = name+".sam"
+            metrics = name+".metrics"
             """
             bowtie2 -x ${params.btindex} -U $reads --end-to-end --threads ${task.cpus} -S $sam_out -a 2> $metrics
             """
-        } else if (params.adna == false){
-            pair1 = name+".R1.fastq"
-            pair2 = name+".R2.fastq"
-            """
-            python fastq_split.py $reads
-            bowtie2 -x ${params.btindex} -1 $pair1 -2 $pair2 --end-to-end --threads ${task.cpus} -S $sam_out -a 2> $metrics
-            """
-        }
 
+    }
+} else {
+    process bowtie_align_to_organellome_db_modern_dna {
+
+        cpus = 18
+        // cache false
+        tag "$name"
+        publishDir "${params.outdir}/alignments", mode: 'copy',
+            saveAs: {filename ->
+                if (filename.indexOf(".sam") > 0)  "./$filename"
+            }
+
+        input:
+            // set val(name), file(reads) from fq_unaligned_human_reads
+            set val(name), file(read1), file(read2) from fq_unaligned_human_reads
+
+        output:
+            set val(name), file('*.sam') into aligned_reads
+            file("*.metrics") into organellome_aln_metrics
+
+        script:
+            sam_out = name+".sam"
+            metrics = name+".metrics"
+            """
+            bowtie2 -x ${params.btindex} -1 $read1 -2 $read2 --end-to-end --threads ${task.cpus} -S $sam_out -a 2> $metrics
+            """
+    }
 }
+
 
 /*
 * STEP 7 - Extract Mapped reads
@@ -668,40 +704,78 @@ if (params.aligner2 == "diamond"){
 /*
 * STEP 12 - Generate run summary
 */
+if (params.adna == true){
+    process multiqc_ancient_dna {
+        tag "$prefix"
+        // cache false
+        publishDir "${params.outdir}/MultiQC", mode: 'copy'
 
-process multiqc {
-    tag "$prefix"
-    // cache false
-    publishDir "${params.outdir}/MultiQC", mode: 'copy'
+        // beforeScript "set +u; source activate py27"
+        // afterScript "set +u; source deactivate py27"
 
-    // beforeScript "set +u; source activate py27"
-    // afterScript "set +u; source deactivate py27"
+        input:
+            file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
+            file ('adapter_removal/*') from adapter_removal_results.collect()
+            file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
+            file('aligned_to_human/*') from human_aln_metrics.collect()
+            file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
+            if (params.ctrl != "none"){
+                file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
+            }
 
-    input:
-        file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
-        file ('adapter_removal/*') from adapter_removal_results.collect()
-        file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
-        file('aligned_to_human/*') from human_aln_metrics.collect()
-        file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
-        if (params.ctrl != "none"){
-            file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
-        }
+        output:
+            file '*multiqc_report.html' into multiqc_report
+            file '*_data' into multiqc_data
+            file '.command.err' into multiqc_stderr
 
-    output:
-        file '*multiqc_report.html' into multiqc_report
-        file '*_data' into multiqc_data
-        file '.command.err' into multiqc_stderr
+        script:
+            prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc/'
+            if (params.ctrl != "none"){
+                """
+                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+                """
+            } else {
+                """
+                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+                """
+            }
 
-    script:
-        prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc/'
-        if (params.ctrl != "none"){
-            """
-            multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
-            """
-        } else {
-            """
-            multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
-            """
-        }
+    }
+} else {
+    process multiqc_modern_dna {
+        tag "$prefix"
+        // cache false
+        publishDir "${params.outdir}/MultiQC", mode: 'copy'
 
+        // beforeScript "set +u; source activate py27"
+        // afterScript "set +u; source deactivate py27"
+
+        input:
+            file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
+            file ('adapter_removal/*') from adapter_removal_results.collect()
+            file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
+            file('aligned_to_human/*') from human_aln_metrics.collect()
+            file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
+            if (params.ctrl != "none"){
+                file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
+            }
+
+        output:
+            file '*multiqc_report.html' into multiqc_report
+            file '*_data' into multiqc_data
+            file '.command.err' into multiqc_stderr
+
+        script:
+            prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc/'
+            if (params.ctrl != "none"){
+                """
+                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+                """
+            } else {
+                """
+                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+                """
+            }
+
+    }
 }
