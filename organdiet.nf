@@ -31,8 +31,12 @@ params.bastamode = "majority"
 params.bastaid = "97"
 params.bastanum = "5"
 
+//CPU parameters
+params.trimmingCPU = 12
+params.bowtieCPU = 18
+params.diamondCPU = 18
+params.centrifugeCPU = 18
 
-nthreads = 24
 
 Channel
     .fromFilePairs( params.reads, size: 2 )
@@ -95,7 +99,7 @@ if (params.ctrl != "none"){
 if (params.adna == true){
     process adapter_removal_ancient_dna {
 
-        cpus = 6
+        cpus = params.trimmingCPU
         // cache false
         tag "$name"
         publishDir "${params.outdir}/trimmed", mode: 'copy'
@@ -124,7 +128,7 @@ if (params.adna == true){
     if (params.ctrl != "none"){
         process adapter_removal_ctrl_ancient_dna {
 
-            cpus = 8
+            cpus = params.trimmingCPU
             // cache false
             tag "$name"
             publishDir "${params.outdir}/trimmed", mode: 'copy'
@@ -149,7 +153,7 @@ if (params.adna == true){
 } else {
     process adapter_removal_modern_dna {
 
-        cpus = 6
+        cpus = params.trimmingCPU
         // cache false
         tag "$name"
         publishDir "${params.outdir}/trimmed", mode: 'copy'
@@ -177,7 +181,7 @@ if (params.adna == true){
     if (params.ctrl != "none"){
         process adapter_removal_ctrl_modern_dna {
 
-            cpus = 8
+            cpus = params.trimmingCPU
             // cache false
             tag "$name"
             publishDir "${params.outdir}/trimmed", mode: 'copy'
@@ -208,7 +212,7 @@ if (params.adna == true){
 if (params.adna == true){
     if (params.ctrl != "none"){
         process ctr_bowtie_db_ancient_dna {
-            cpus = 12
+            cpus = params.bowtieCPU
             // cache false
 
             input:
@@ -228,7 +232,7 @@ if (params.adna == true){
 } else {
     if (params.ctrl != "none"){
         process ctr_bowtie_db_modern_dna {
-            cpus = 12
+            cpus = params.bowtieCPU
             // cache false
 
             input:
@@ -263,7 +267,7 @@ if (params.adna == true){
     if (params.ctrl != "none"){
         process bowtie_align_to_ctrl_ancient_dna {
 
-            cpus = 18
+            cpus = params.bowtieCPU
             // cache false
             tag "$name"
             publishDir "${params.outdir}/control_removed", mode: 'copy',
@@ -294,7 +298,7 @@ if (params.adna == true){
     if (params.ctrl != "none"){
         process bowtie_align_to_ctrl_modern_dna {
 
-            cpus = 18
+            cpus = params.bowtieCPU
             // cache false
             tag "$name"
             publishDir "${params.outdir}/control_removed", mode: 'copy',
@@ -338,7 +342,7 @@ if (params.ctrl != "none"){
     if (params.adna == true){
         process bowtie_align_to_human_genome_from_ctrl_ancient_dna {
 
-            cpus = 18
+            cpus = params.bowtieCPU
             // cache false
             tag "$name"
             publishDir "${params.outdir}/human_removed", mode: 'copy',
@@ -364,7 +368,7 @@ if (params.ctrl != "none"){
     } else {
         process bowtie_align_to_human_genome_from_ctrl_modern_dna {
 
-            cpus = 18
+            cpus = params.bowtieCPU
             // cache false
             tag "$name"
             publishDir "${params.outdir}/human_removed", mode: 'copy',
@@ -397,7 +401,7 @@ if (params.ctrl != "none"){
     if (params.adna == true){
         process bowtie_align_to_human_genome_no_control_ancient_dna {
 
-            cpus = 18
+            cpus = params.bowtieCPU
             // cache false
             tag "$name"
             publishDir "${params.outdir}/human_removed", mode: 'copy',
@@ -426,7 +430,7 @@ if (params.ctrl != "none"){
     } else {
         process bowtie_align_to_human_genome_no_control_modern_dna {
 
-            cpus = 18
+            cpus = params.bowtieCPU
             // cache false
             tag "$name"
             publishDir "${params.outdir}/human_removed", mode: 'copy',
@@ -469,7 +473,7 @@ if (params.ctrl != "none"){
 if (params.adna == true ){
     process bowtie_align_to_organellome_db_ancient_dna {
 
-        cpus = 18
+        cpus = params.bowtieCPU
         // cache false
         tag "$name"
         publishDir "${params.outdir}/alignments", mode: 'copy',
@@ -495,7 +499,7 @@ if (params.adna == true ){
 } else {
     process bowtie_align_to_organellome_db_modern_dna {
 
-        cpus = 18
+        cpus = params.bowtieCPU
         // cache false
         tag "$name"
         publishDir "${params.outdir}/alignments", mode: 'copy',
@@ -573,7 +577,7 @@ process extract_best_reads {
 if (params.aligner2 == "diamond"){
     process diamond_align_to_nr {
         tag "$name"
-        cpus = 18
+        cpus = params.diamondCPU
 
 
         publishDir "${params.outdir}/nr_alignment", mode: 'copy',
@@ -595,7 +599,7 @@ if (params.aligner2 == "diamond"){
 
     process centrifuge_align_to_nr{
         tag "$name"
-        cpus = 1
+        cpus = params.centrifugeCPU
 
         publishDir "${params.outdir}/nr_alignment", mode: 'copy',
             saveAs: {filename ->  "./$filename"}
@@ -610,7 +614,7 @@ if (params.aligner2 == "diamond"){
             centrifuge_out = name+".centrifuge.out"
             centrifuge_report = name+"_centrifuge_report.tsv"
             """
-            centrifuge -x ${params.centrifugedb} -r $best_fa -f --report-file $centrifuge_report -S $centrifuge_out
+            centrifuge -x ${params.centrifugedb} -r $best_fa -p ${task.cpus} -f --report-file $centrifuge_report -S $centrifuge_out
             """
     }
 
