@@ -18,8 +18,6 @@ Pipeline overview:
  - 3:   Build Bowtie DB of control. If control provided.
  - 4:   Align on control, output unaligned reads. If control provided.
  - 5:   Align on human genome, output unaligned reads
- - 4:   Picard for duplicate read identification
- - 5:   Statistics about read counts
  - 6:   Align on organellome database
  - 7:   Extract Mapped reads
  - 8:   Filter reads on quality and length

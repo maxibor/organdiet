@@ -96,3 +96,22 @@ nextflow run maxibor/organdiet --help
 # An example workflow for this pipeline
 
 ![](./img/flowchart.png)
+
+# Credits
+
+The OrganDiet pipeline uses many tools listed below:
+- [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
+- [AdapterRemoval](https://github.com/MikkelSchubert/adapterremoval)
+- [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+- [Samtools](http://www.htslib.org/)
+- [Diamond](https://github.com/bbuchfink/diamond)
+- [Centrifuge](https://ccb.jhu.edu/software/centrifuge/manual.shtml)
+- [BASTA](https://github.com/timkahlke/BASTA)
+- [ReCentrifuge](https://github.com/khyox/recentrifuge)
+- [Krona](https://github.com/marbl/Krona/wiki)
+- [Nextflow](https://www.nextflow.io/)
+
+The author of OrganDiet also got some inspiration and help from the following awesome developers:
+- [Paolo Di Tomasso](https://twitter.com/paoloditommaso)
+- [Phil Ewels](https://twitter.com/tallphil)
+- [Tim Kahlke](https://twitter.com/AdvancedTwigTec)
