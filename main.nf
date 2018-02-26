@@ -79,10 +79,12 @@ params.centrifugeCPU = 18
 
 // Show help emssage
 params.help = false
-if (params.help){
+params.h = false
+if (params.help || params.h){
     helpMessage()
     exit 0
 }
+
 
 
 // Header log info
@@ -95,7 +97,7 @@ if (params.ctrl) summary['Control']    = params.ctrl
 summary['DNA type']    = params.adna ? 'Ancient DNA' : 'Modern DNA'
 summary['Organellome database']   = params.btindex
 summary['Human genome']     = params.hgindex
-summary('Aligner2') = params.aligner2
+summary['Aligner2'] = params.aligner2
 if (params.aligner2 == "diamond") summary['Diamond DB'] = params.nrdb
 if (params.aligner2 == "centrifuge") summary['Centrifuge DB']  = params.centrifugedb
 if (params.aligner2 == "diamond"){
