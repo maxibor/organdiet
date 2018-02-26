@@ -77,7 +77,7 @@ params.results = "$baseDir/results"
 
 // Script and configurations
 params.adna = true
-params.multiqc_conf="$baseDir/.multiqc_config.yaml"
+params.multiqc_conf="$baseDir/conf/.multiqc_config.yaml"
 params.aligner2 = "diamond"
 scriptdir = "$baseDir/bin/"
 py_specie = scriptdir+"process_mapping.py"
