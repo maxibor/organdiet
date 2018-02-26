@@ -1,5 +1,6 @@
 *.log*
 bin/recentrifuge/taxdump/*
+organellome_db/*
 bin/BASTA/taxonomy/*
 results/*
 data/*
