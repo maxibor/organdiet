@@ -1,5 +1,44 @@
 #!/usr/bin/env nextflow
 
+
+def helpMessage() {
+    log.info"""
+    =========================================
+     OrganDiet version ${version}
+    =========================================
+    Usage:
+    The typical command for running the pipeline is as follows:
+    nextflow run maxibor/organdiet --reads '*_R{1,2}.fastq.gz' --btindex db_basename --hgindex db_basename --nrdb db_basename
+    Mandatory arguments:
+      --reads                       Path to input data (must be surrounded with quotes)
+      --btindex                     Path to organellome database bowtie2 index
+      --hgindex                     Path to human genome bowtie2 index
+
+    Options:
+      --aligner2                    Specifies the 2nd aligner to nt or nr db (respectively centrifuge or diamond). The proper db associated with aligner2 program must be specified. Defaults to ${params.aligner2}
+      --adna                        Specifies if you have ancient dna (true) or modern dna (false). Defaults to ${params.adna}
+      --ctrl_index                  Specifies control fastq sequencing data. Must be the same specified the same way as --reads. Defaults to ${params.ctrl_index}
+      --bastamode                   Specifies the mode of LCA for BASTA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastamode}
+      --bastaid                     Specifies the identity lower threshold for BASTA LCA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastaid}
+      --bastanum                    Specifies the number of hits to retain for BASTA LCA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastanum}
+      --trimmingCPU                 Specifies the number of CPU used to trimming/cleaning by AdapterRemoval. Defaults to ${params.trimmingCPU}
+      --bowtieCPU                   Specifies the number of CPU used by bowtie2 aligner. Defaults to ${params.bowtieCPU}
+      --diamondCPU                  Specifies the number of CPU used by diamond aligner. Only used if --aligner2 is set to diamond. Defaults to ${params.diamondCPU}
+      --centrifugeCPU               Specifies the number of CPU used by centrifuge aligner. Only used if --aligner2 is set to centrifuge. Default to ${params.centrifugeCPU}
+
+    References:
+      --nrdb                        Path to diamond nr db index. Must be specified if --aligner2 is set to diamond
+      --centrifugedb                Path to centrifuge nt db index. Must be specified if --aligner2 is set to centrifuge
+
+    Other options:
+      --results                     Name of result directory. Defaults to ${params.results}
+
+    """.stripIndent()
+}
+
+//Pipeline version
+version = "0.2"
+
 // File locations - default for testing
 // params.reads = "$baseDir/data/*_R{1,2}.fastq.gz"
 params.reads = "/home/maxime/Documents/data/anna_africa/*_{1,2}.fastq.gz"
@@ -8,7 +47,7 @@ params.ctrl = "none"
 
 
 // Result directory
-params.outdir = "$baseDir/results"
+params.results = "$baseDir/results"
 
 // Script and configurations
 params.adna = true
@@ -25,6 +64,7 @@ params.btindex = "/home/maxime/Documents/db/organellome/bowtie2index/organellome
 params.hgindex = "/home/maxime/Documents/db/hs_genome/Homo_sapiens_Ensembl_GRCh37/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome"
 params.nrdb = "/home/maxime/Documents/db/diamond/nr"
 params.centrifugedb = "/home/maxime/Documents/db/centrifuge/nt/nt"
+recentrifugeNodes = scriptdir+"recentrifuge/taxdump"
 
 // BASTA (LCA) parameters
 params.bastamode = "majority"
@@ -36,6 +76,39 @@ params.trimmingCPU = 12
 params.bowtieCPU = 18
 params.diamondCPU = 18
 params.centrifugeCPU = 18
+
+// Show help emssage
+params.help = false
+if (params.help){
+    helpMessage()
+    exit 0
+}
+
+
+// Header log info
+log.info "========================================="
+log.info " OrganDiet version ${version}"
+log.info "========================================="
+def summary = [:]
+summary['Reads']        = params.reads
+if (params.ctrl) summary['Control']    = params.ctrl
+summary['DNA type']    = params.adna ? 'Ancient DNA' : 'Modern DNA'
+summary['Organellome database']   = params.btindex
+summary['Human genome']     = params.hgindex
+summary('Aligner2') = params.aligner2
+if (params.aligner2 == "diamond") summary['Diamond DB'] = params.nrdb
+if (params.aligner2 == "centrifuge") summary['Centrifuge DB']  = params.centrifugedb
+if (params.aligner2 == "diamond"){
+    summary["BASTA mode"] = params.bastamode
+    summary["BASTA identity threshold"] = params.bastaid
+    summary["BASTA hit threshold"] = params.bastanum
+}
+summary["CPU for Trimming"] = params.trimmingCPU
+summary["CPU for Bowtie2"] = params.bowtieCPU
+if (params.aligner2 == "diamond") summary["CPU for diamond"] = params.diamondCPU
+if (params.alinger2 == "centrifuge") summary["CPU for centrifuge"] = params.centrifugeCPU
+log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
+log.info "========================================="
 
 
 Channel
@@ -57,7 +130,7 @@ if (params.ctrl != "none"){
 process fastqc {
     // cache false
     tag "$name"
-    publishDir "${params.outdir}/fastqc", mode: 'copy',
+    publishDir "${params.results}/fastqc", mode: 'copy',
        saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
 
     input:
@@ -77,7 +150,7 @@ if (params.ctrl != "none"){
     process fastqc_control {
         // cache false
         tag "$name"
-        publishDir "${params.outdir}/fastqc", mode: 'copy',
+        publishDir "${params.results}/fastqc", mode: 'copy',
            saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
 
         input:
@@ -102,7 +175,7 @@ if (params.adna == true){
         cpus = params.trimmingCPU
         // cache false
         tag "$name"
-        publishDir "${params.outdir}/trimmed", mode: 'copy'
+        publishDir "${params.results}/trimmed", mode: 'copy'
 
         input:
             set val(name), file(reads) from raw_reads_trimming
@@ -131,7 +204,7 @@ if (params.adna == true){
             cpus = params.trimmingCPU
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/trimmed", mode: 'copy'
+            publishDir "${params.results}/trimmed", mode: 'copy'
 
             input:
                 set val(name), file(reads) from raw_ctrl_trimming
@@ -156,7 +229,7 @@ if (params.adna == true){
         cpus = params.trimmingCPU
         // cache false
         tag "$name"
-        publishDir "${params.outdir}/trimmed", mode: 'copy'
+        publishDir "${params.results}/trimmed", mode: 'copy'
 
         input:
             set val(name), file(reads) from raw_reads_trimming
@@ -184,7 +257,7 @@ if (params.adna == true){
             cpus = params.trimmingCPU
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/trimmed", mode: 'copy'
+            publishDir "${params.results}/trimmed", mode: 'copy'
 
             input:
                 set val(name), file(reads) from raw_ctrl_trimming
@@ -217,7 +290,6 @@ if (params.adna == true){
 
             input:
                 set val(name), file(col_read) from collapsed_reads_ctrl
-                set val(name), file(trun_read1), file(trun_read2) from truncated_reads_ctrl
 
             output:
                 file "ctrl_index*" into ctrl_index
@@ -270,7 +342,7 @@ if (params.adna == true){
             cpus = params.bowtieCPU
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/control_removed", mode: 'copy',
+            publishDir "${params.results}/control_removed", mode: 'copy',
                 saveAs: {filename ->
                     if (filename.indexOf(".fastq") > 0)  "./$filename"
                 }
@@ -301,7 +373,7 @@ if (params.adna == true){
             cpus = params.bowtieCPU
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/control_removed", mode: 'copy',
+            publishDir "${params.results}/control_removed", mode: 'copy',
                 saveAs: {filename ->
                     if (filename.indexOf(".fastq") > 0)  "./$filename"
                 }
@@ -345,7 +417,7 @@ if (params.ctrl != "none"){
             cpus = params.bowtieCPU
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/human_removed", mode: 'copy',
+            publishDir "${params.results}/human_removed", mode: 'copy',
                 saveAs: {filename ->
                     if (filename.indexOf(".fastq") > 0)  "./$filename"
                 }
@@ -371,7 +443,7 @@ if (params.ctrl != "none"){
             cpus = params.bowtieCPU
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/human_removed", mode: 'copy',
+            publishDir "${params.results}/human_removed", mode: 'copy',
                 saveAs: {filename ->
                     if (filename.indexOf(".fastq") > 0)  "./$filename"
                 }
@@ -404,7 +476,7 @@ if (params.ctrl != "none"){
             cpus = params.bowtieCPU
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/human_removed", mode: 'copy',
+            publishDir "${params.results}/human_removed", mode: 'copy',
                 saveAs: {filename ->
                     if (filename.indexOf(".fastq") > 0)  "./$filename"
                 }
@@ -433,7 +505,7 @@ if (params.ctrl != "none"){
             cpus = params.bowtieCPU
             // cache false
             tag "$name"
-            publishDir "${params.outdir}/human_removed", mode: 'copy',
+            publishDir "${params.results}/human_removed", mode: 'copy',
                 saveAs: {filename ->
                     if (filename.indexOf(".fastq") > 0)  "./$filename"
                 }
@@ -476,7 +548,7 @@ if (params.adna == true ){
         cpus = params.bowtieCPU
         // cache false
         tag "$name"
-        publishDir "${params.outdir}/alignments", mode: 'copy',
+        publishDir "${params.results}/alignments", mode: 'copy',
             saveAs: {filename ->
                 if (filename.indexOf(".sam") > 0)  "./$filename"
             }
@@ -502,7 +574,7 @@ if (params.adna == true ){
         cpus = params.bowtieCPU
         // cache false
         tag "$name"
-        publishDir "${params.outdir}/alignments", mode: 'copy',
+        publishDir "${params.results}/alignments", mode: 'copy',
             saveAs: {filename ->
                 if (filename.indexOf(".sam") > 0)  "./$filename"
             }
@@ -533,7 +605,7 @@ process extract_mapped_reads {
 
     tag "$name"
     // cache false
-    publishDir "${params.outdir}/alignments", mode: 'copy',
+    publishDir "${params.results}/alignments", mode: 'copy',
         saveAs: {filename ->
             if (filename.indexOf(".mapped.sam") > 0)  "./$filename"
         }
@@ -580,7 +652,7 @@ if (params.aligner2 == "diamond"){
         cpus = params.diamondCPU
 
 
-        publishDir "${params.outdir}/nr_alignment", mode: 'copy',
+        publishDir "${params.results}/nr_alignment", mode: 'copy',
             saveAs: {filename ->  "./$filename"}
 
         input:
@@ -601,7 +673,7 @@ if (params.aligner2 == "diamond"){
         tag "$name"
         cpus = params.centrifugeCPU
 
-        publishDir "${params.outdir}/nr_alignment", mode: 'copy',
+        publishDir "${params.results}/nr_alignment", mode: 'copy',
             saveAs: {filename ->  "./$filename"}
 
         input:
@@ -624,7 +696,7 @@ if (params.aligner2 == "diamond"){
         beforeScript "set +u; source activate py36"
         afterScript "set +u; source deactivate py36"
 
-         publishDir "${params.outdir}/krona", mode: 'copy',
+         publishDir "${params.results}/krona", mode: 'copy',
             saveAs: {filename ->  "./$filename"}
 
         input:
@@ -636,7 +708,7 @@ if (params.aligner2 == "diamond"){
         script:
             allfiles = centrifuge_aligned.join(" -f ")
             """
-            $recentrifuge -f $allfiles -o recentrifuge_result.html
+            $recentrifuge -f $allfiles -n $recentrifugeNodes -o recentrifuge_result.html
             """
     }
 }
@@ -652,7 +724,7 @@ if (params.aligner2 == "diamond"){
         tag "$name"
 
 
-        publishDir "${params.outdir}/taxonomy", mode: 'copy',
+        publishDir "${params.results}/taxonomy", mode: 'copy',
             saveAs: {filename ->
                 if (filename.indexOf(".basta.out") > 0)  "./$filename"
             }
@@ -684,7 +756,7 @@ if (params.aligner2 == "diamond"){
         tag "$name"
 
 
-        publishDir "${params.outdir}/krona", mode: 'copy',
+        publishDir "${params.results}/krona", mode: 'copy',
             saveAs: {filename ->  "./$filename"}
 
         // beforeScript "set +u; source activate py27"
@@ -709,10 +781,10 @@ if (params.aligner2 == "diamond"){
 * STEP 12 - Generate run summary
 */
 if (params.adna == true){
-    process multiqc_ancient_dna {
+    process multiqc_no_control {
         tag "$prefix"
         // cache false
-        publishDir "${params.outdir}/MultiQC", mode: 'copy'
+        publishDir "${params.results}/MultiQC", mode: 'copy'
 
         // beforeScript "set +u; source activate py27"
         // afterScript "set +u; source deactivate py27"
@@ -723,9 +795,6 @@ if (params.adna == true){
             file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
             file('aligned_to_human/*') from human_aln_metrics.collect()
             file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
-            if (params.ctrl != "none"){
-                file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
-            }
 
         output:
             file '*multiqc_report.html' into multiqc_report
@@ -734,22 +803,16 @@ if (params.adna == true){
 
         script:
             prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc/'
-            if (params.ctrl != "none"){
-                """
-                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
-                """
-            } else {
-                """
-                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
-                """
-            }
+            """
+            multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+            """
 
     }
 } else {
-    process multiqc_modern_dna {
+    process multiqc_with_control {
         tag "$prefix"
         // cache false
-        publishDir "${params.outdir}/MultiQC", mode: 'copy'
+        publishDir "${params.results}/MultiQC", mode: 'copy'
 
         // beforeScript "set +u; source activate py27"
         // afterScript "set +u; source deactivate py27"
@@ -760,9 +823,7 @@ if (params.adna == true){
             file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
             file('aligned_to_human/*') from human_aln_metrics.collect()
             file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
-            if (params.ctrl != "none"){
-                file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
-            }
+            file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
 
         output:
             file '*multiqc_report.html' into multiqc_report
@@ -771,15 +832,9 @@ if (params.adna == true){
 
         script:
             prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc/'
-            if (params.ctrl != "none"){
-                """
-                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
-                """
-            } else {
-                """
-                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
-                """
-            }
+            """
+            multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+            """
 
     }
 }
