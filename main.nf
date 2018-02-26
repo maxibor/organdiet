@@ -17,7 +17,7 @@ def helpMessage() {
     Options:
       --aligner2                    Specifies the 2nd aligner to nt or nr db (respectively centrifuge or diamond). The proper db associated with aligner2 program must be specified. Defaults to ${params.aligner2}
       --adna                        Specifies if you have ancient dna (true) or modern dna (false). Defaults to ${params.adna}
-      --ctrl_index                  Specifies control fastq sequencing data. Must be the same specified the same way as --reads. Defaults to ${params.ctrl_index}
+      --ctrl_index                  Specifies control fastq sequencing data. Must be the same specified the same way as --reads. Defaults to ${params.ctrl}
       --bastamode                   Specifies the mode of LCA for BASTA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastamode}
       --bastaid                     Specifies the identity lower threshold for BASTA LCA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastaid}
       --bastanum                    Specifies the number of hits to retain for BASTA LCA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastanum}
