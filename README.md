@@ -15,9 +15,9 @@
 
 ### 1. Set up conda environments
 ```
-wget https://github.com/maxibor/organdiet/archive/0.2.zip
-unzip 0.2.zip
-cd organdiet-0.2
+wget https://github.com/maxibor/organdiet/archive/v0.2.1.zip
+unzip v0.2.1.zip
+cd organdiet-0.2.1
 conda env create -f envs/organdiet.yml
 conda env create -f envs/py36.yml
 source activate organdiet
