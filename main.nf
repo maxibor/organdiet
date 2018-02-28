@@ -376,7 +376,6 @@ if (params.adna == true){
 
             input:
                 set val(name), file(col_reads) from collapsed_reads
-                set val(name), file(trun_read1), file(trun_read2) from truncated_reads
                 file bt_index from ctrl_index.collect()
 
             output:
