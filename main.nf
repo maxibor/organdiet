@@ -136,6 +136,7 @@ summary["CPU for Trimming"] = params.trimmingCPU
 summary["CPU for Bowtie2"] = params.bowtieCPU
 if (params.aligner2 == "diamond") summary["CPU for diamond"] = params.diamondCPU
 if (params.aligner2 == "centrifuge") summary["CPU for centrifuge"] = params.centrifugeCPU
+summary["Results directory path"] = params.results
 log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
 log.info "========================================="
 
