@@ -51,7 +51,7 @@ def helpMessage() {
       --centrifugeCPU               Specifies the number of CPU used by centrifuge aligner. Only used if --aligner2 is set to centrifuge. Default to ${params.centrifugeCPU}
 
     References: (files and directories must exist if used)
-      --btindex                     Path to organellome database bowtie2 index. Defaults to ${params.bt_index}
+      --btindex                     Path to organellome database bowtie2 index. Defaults to ${params.btindex}
       --hgindex                     Path to human genome bowtie2 index. Defaults to ${params.hgindex}
       --nrdb                        Path to diamond nr db index. Used if --aligner2 is set to diamond. Defaults to ${params.nrdb}
       --bastadb                     Path to recentrifuge taxonomy db. Must be specified if --aligner2 is centrifuge. Defaults to ${params.bastadb}
