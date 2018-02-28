@@ -37,13 +37,11 @@ def helpMessage() {
     nextflow run maxibor/organdiet --reads '*_R{1,2}.fastq.gz' --btindex db_basename --hgindex db_basename --nrdb db_basename
     Mandatory arguments:
       --reads                       Path to input data (must be surrounded with quotes)
-      --btindex                     Path to organellome database bowtie2 index
-      --hgindex                     Path to human genome bowtie2 index
 
     Options:
+      --ctrl                        Specifies control fastq sequencing data. Must be the same specified the same way as --reads. Defaults to ${params.ctrl}
       --aligner2                    Specifies the 2nd aligner to nt or nr db (respectively centrifuge or diamond). The proper db associated with aligner2 program must be specified. Defaults to ${params.aligner2}
       --adna                        Specifies if you have ancient dna (true) or modern dna (false). Defaults to ${params.adna}
-      --ctrl_index                  Specifies control fastq sequencing data. Must be the same specified the same way as --reads. Defaults to ${params.ctrl}
       --bastamode                   Specifies the mode of LCA for BASTA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastamode}
       --bastaid                     Specifies the identity lower threshold for BASTA LCA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastaid}
       --bastanum                    Specifies the number of hits to retain for BASTA LCA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastanum}
@@ -52,9 +50,14 @@ def helpMessage() {
       --diamondCPU                  Specifies the number of CPU used by diamond aligner. Only used if --aligner2 is set to diamond. Defaults to ${params.diamondCPU}
       --centrifugeCPU               Specifies the number of CPU used by centrifuge aligner. Only used if --aligner2 is set to centrifuge. Default to ${params.centrifugeCPU}
 
-    References:
-      --nrdb                        Path to diamond nr db index. Must be specified if --aligner2 is set to diamond
-      --centrifugedb                Path to centrifuge nt db index. Must be specified if --aligner2 is set to centrifuge
+    References: (files and directories must exist if used)
+      --btindex                     Path to organellome database bowtie2 index. Defaults to ${params.bt_index}
+      --hgindex                     Path to human genome bowtie2 index. Defaults to ${params.hgindex}
+      --nrdb                        Path to diamond nr db index. Used if --aligner2 is set to diamond. Defaults to ${params.nrdb}
+      --bastadb                     Path to recentrifuge taxonomy db. Must be specified if --aligner2 is centrifuge. Defaults to ${params.bastadb}
+      --centrifugedb                Path to centrifuge nt db index. Used if --aligner2 is set to centrifuge. Defaults to ${params.centrifugedb}
+      --recentrifugedb              Path to recentrifuge taxonomy db. Used if --aligner2 is set to centrifuge. Defaults to ${params.recentrifugedb}
+
 
     Other options:
       --results                     Name of result directory. Defaults to ${params.results}
@@ -87,7 +90,8 @@ params.btindex = "$basedir/organellome_db/organellome"
 params.hgindex = "$basedir/hs_genome/Homo_sapiens_Ensembl_GRCh37/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome"
 params.nrdb = "$basedir/nr_diamond_db/nr"
 params.centrifugedb = "$basedir/nt_db/nt"
-recentrifugeNodes = scriptdir+"recentrifuge/taxdump"
+params.recentrifugedb = scriptdir+"recentrifuge/taxdump"
+params.bastadb = scriptdir+"/BASTA/taxonomy"
 
 // BASTA (LCA) parameters
 params.bastamode = "majority"
@@ -725,7 +729,7 @@ if (params.aligner2 == "diamond"){
         script:
             allfiles = centrifuge_aligned.join(" -f ")
             """
-            $recentrifuge -f $allfiles -n $recentrifugeNodes -o recentrifuge_result.html
+            $recentrifuge -f $allfiles -n ${params.recentrifugedb} -o recentrifuge_result.html
             """
     }
 }
@@ -752,7 +756,7 @@ if (params.aligner2 == "diamond"){
             sorted_nr = name+"_diamond_nr.sorted"
             """
             sort -k3 -r -n $aligned_nr > $sorted_nr
-            $basta sequence $sorted_nr $basta_name prot -t ${params.bastamode} -m 1 -n ${params.bastanum} -i ${params.bastaid}
+            $basta sequence $sorted_nr $basta_name prot -d ${params.bastadb} -t ${params.bastamode} -m 1 -n ${params.bastanum} -i ${params.bastaid}
             """
     }
 
