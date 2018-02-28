@@ -34,7 +34,7 @@ def helpMessage() {
     =========================================
     Usage:
     The typical command for running the pipeline is as follows:
-    nextflow run maxibor/organdiet --reads '*_R{1,2}.fastq.gz' --btindex db_basename --hgindex db_basename --nrdb db_basename
+    nextflow run maxibor/organdiet --reads '*_R{1,2}.fastq.gz'
     Mandatory arguments:
       --reads                       Path to input data (must be surrounded with quotes)
 
