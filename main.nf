@@ -66,14 +66,14 @@ def helpMessage() {
 }
 
 //Pipeline version
-version = "0.2"
+version = "0.2.1"
 
 params.reads = "*_{1,2}.fastq.gz"
 params.ctrl = "none"
 
 
 // Result directory
-params.results = "$baseDir/results"
+params.results = "$PWD/results"
 
 // Script and configurations
 params.adna = true
@@ -91,7 +91,7 @@ params.hgindex = "$baseDir/hs_genome/Homo_sapiens_Ensembl_GRCh37/Homo_sapiens/En
 params.nrdb = "$baseDir/nr_diamond_db/nr"
 params.centrifugedb = "$baseDir/nt_db/nt"
 params.recentrifugedb = scriptdir+"recentrifuge/taxdump"
-params.bastadb = scriptdir+"/BASTA/taxonomy"
+params.bastadb = scriptdir+"BASTA/taxonomy"
 
 // BASTA (LCA) parameters
 params.bastamode = "majority"
@@ -135,7 +135,7 @@ if (params.aligner2 == "diamond"){
 summary["CPU for Trimming"] = params.trimmingCPU
 summary["CPU for Bowtie2"] = params.bowtieCPU
 if (params.aligner2 == "diamond") summary["CPU for diamond"] = params.diamondCPU
-if (params.alinger2 == "centrifuge") summary["CPU for centrifuge"] = params.centrifugeCPU
+if (params.aligner2 == "centrifuge") summary["CPU for centrifuge"] = params.centrifugeCPU
 log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
 log.info "========================================="
 
