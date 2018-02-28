@@ -699,7 +699,7 @@ if (params.aligner2 == "diamond"){
             set val(name), file(best_fa) from best_match
 
         output:
-            file("*.centrifuge.out") into nr_aligned
+            file("*.centrifuge.out") into nt_aligned
 
         script:
             centrifuge_out = name+".centrifuge.out"
@@ -721,7 +721,7 @@ if (params.aligner2 == "diamond"){
             saveAs: {filename ->  "./$filename"}
 
         input:
-            file centrifuge_aligned from nr_aligned.toList()
+            file centrifuge_aligned from nt_aligned.toList()
 
         output:
             file("recentrifuge_result.html") into recentrifuge_result
