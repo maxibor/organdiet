@@ -39,7 +39,7 @@ def helpMessage() {
       --reads                       Path to input data (must be surrounded with quotes)
 
     Options:
-      --singleEnd                   Specifies that the input is single end reads (true | false).Defaults to ${params.singleEnd} . Experimental: currently only available for ancient DNA reads samples. 
+      --singleEnd                   Specifies that the input is single end reads (true | false).Defaults to ${params.singleEnd} . Experimental: currently only available for ancient DNA reads samples.
       --ctrl                        Specifies control fastq sequencing data. Must be the same specified the same way as --reads. Defaults to ${params.ctrl}
       --aligner2                    Specifies the 2nd aligner to nt or nr db (respectively centrifuge or diamond). The proper db associated with aligner2 program must be specified. Defaults to ${params.aligner2}
       --adna                        Specifies if you have ancient dna (true) or modern dna (false). Defaults to ${params.adna}
@@ -143,6 +143,12 @@ log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
 log.info "========================================="
 
 
+// Check single-end ancient DNA comptatibility
+
+if (params.adna == false && params.singleEnd == true){
+    exit 1, "Single-end data are only supported for ancient DNA"
+}
+
 Channel
     .fromFilePairs( params.reads, size: params.singleEnd ? 1 : 2 )
     .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nIf this is single-end data, please specify --singleEnd on the command line." }
@@ -151,8 +157,8 @@ Channel
 
 if (params.ctrl != "none"){
     Channel
-        .fromFilePairs( params.ctrl, size: params.singleEnd ? 1 : 2 )
-        .ifEmpty { exit 1, "Cannot find any reads matching: ${params.ctrl}\nIf this is single-end data, please specify --singleEnd on the command line."}
+        .fromFilePairs( params.ctrl, size: 2 )
+        .ifEmpty { exit 1, "Cannot find any reads matching: ${params.ctrl}\nSingle-end data are not supported for control"}
         .into { raw_ctrl_fastqc; raw_ctrl_trimming }
 
 }
