@@ -39,7 +39,7 @@ def helpMessage() {
       --reads                       Path to input data (must be surrounded with quotes)
 
     Options:
-      --singleEnd                   Specifies that the input is single end reads (true | false).Defaults to ${params.singleEnd} . Experimental: currently only available for ancient DNA reads samples. 
+      --singleEnd                   Specifies that the input is single end reads (true | false). Defaults to ${params.singleEnd}
       --ctrl                        Specifies control fastq sequencing data. Must be the same specified the same way as --reads. Defaults to ${params.ctrl}
       --aligner2                    Specifies the 2nd aligner to nt or nr db (respectively centrifuge or diamond). The proper db associated with aligner2 program must be specified. Defaults to ${params.aligner2}
       --adna                        Specifies if you have ancient dna (true) or modern dna (false). Defaults to ${params.adna}
@@ -219,6 +219,7 @@ process adapter_removal_ancient_dna {
         set val(name), file(reads) from raw_reads_trimming
 
     output:
+        set val(name), file('*.truncated.fastq') into truncated_reads
         set val(name), file('*.collapsed.fastq') into collapsed_reads
         set val(name), file("*.settings") into adapter_removal_results
         file '*_fastqc.{zip,html}' into fastqc_results_after_trim
@@ -227,10 +228,10 @@ process adapter_removal_ancient_dna {
 
     script:
         if (params.singleEnd){
-            outSE = name+".truncated.fastq"
+            out = name+".truncated.fastq"
             col_out = name+".collapsed.fastq"
             """
-            AdapterRemoval --basename $name --file1 ${reads[0]} --trimns --trimqualities --collapse --output1 $outSE --outputcollapsed $col_out --threads ${task.cpus}
+            AdapterRemoval --basename $name --file1 ${reads[0]} --trimns --trimqualities --collapse --output1 $out1 --outputcollapsed $col_out --threads ${task.cpus}
             fastqc -q *.collapsed*
             """
         } else {
@@ -533,6 +534,7 @@ process bowtie_align_to_human_genome_no_control_ancient_dna {
 
     input:
     set val(name), file(col_reads) from collapsed_reads
+    set val(name), file(trun_read1), file(trun_read2) from truncated_reads
 
     output:
         set val(name), file('*.human_unal.fastq') into fq_unaligned_human_reads
