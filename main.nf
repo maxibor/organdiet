@@ -41,6 +41,7 @@ def helpMessage() {
     Options:
       --singleEnd                   Specifies that the input is single end reads (true | false). Defaults to ${params.singleEnd}. Only available for aDNA reads samples.
       --ctrl                        Specifies control fastq sequencing data. Must be the same specified the same way as --reads. Defaults to ${params.ctrl}
+      --phred                       Specifies the Fastq PHRED quality encoding (33 | 64 | solexa). Defaults to 33.
       --aligner2                    Specifies the 2nd aligner to nt or nr db (respectively centrifuge or diamond). The proper db associated with aligner2 program must be specified. Defaults to ${params.aligner2}
       --adna                        Specifies if you have ancient dna (true) or modern dna (false). Defaults to ${params.adna}
       --bastamode                   Specifies the mode of LCA for BASTA. Only used if --aligner2 is set to diamond. Defaults to ${params.bastamode}
@@ -79,6 +80,7 @@ params.results = "$PWD/results"
 // Script and configurations
 params.singleEnd = false
 params.adna = true
+params.phred = 33
 params.multiqc_conf="$baseDir/conf/.multiqc_config.yaml"
 params.aligner2 = "diamond"
 scriptdir = "$baseDir/bin/"
@@ -97,8 +99,8 @@ params.bastadb = scriptdir+"BASTA/taxonomy"
 
 // BASTA (LCA) parameters
 params.bastamode = "majority"
-params.bastaid = "97"
-params.bastanum = "5"
+params.bastaid = 99
+params.bastanum = 5
 
 //CPU parameters
 params.trimmingCPU = 12
@@ -124,6 +126,7 @@ def summary = [:]
 summary['Reads']        = params.reads
 if (params.ctrl) summary['Control']    = params.ctrl
 summary['DNA type']    = params.adna ? 'Ancient DNA' : 'Modern DNA'
+summary['PHRED'] = params.phred
 summary['Organellome database']   = params.btindex
 summary['Human genome']     = params.hgindex
 summary['Aligner2'] = params.aligner2
@@ -143,15 +146,18 @@ log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
 log.info "========================================="
 
 
+PHRED = Integer.toString(params.phred)
+btquality = "--phred"+PHRED+"-quals"
+
 //Check for singleEnd ancientDNA sanity
 
-if (params.singleEnd == true && params.ancientDNA != true){
-    exit1, "Single End mode is only available for ancient DNA samples"
+if (params.singleEnd == true && params.adna != true){
+    exit 1, "Single End mode is only available for ancient DNA samples"
 }
 
 Channel
     .fromFilePairs( params.reads, size: params.singleEnd ? 1 : 2 )
-    .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nIf this is single-end data, please specify --singleEnd on the command line." } }
+    .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nIf this is single-end data, please specify --singleEnd on the command line." }
 	.into { raw_reads_fastqc; raw_reads_trimming }
 
 if (params.ctrl != "none"){
@@ -231,7 +237,7 @@ if (params.adna == true){
                 outSE = name+".truncated.fastq"
                 col_out = name+".collapsed.fastq"
                 """
-                AdapterRemoval --basename $name --file1 ${reads[0]} --trimns --trimqualities --collapse --output1 $outSE --outputcollapsed $col_out --threads ${task.cpus}
+                AdapterRemoval --basename $name --file1 ${reads[0]} --trimns --trimqualities --collapse --output1 $outSE --outputcollapsed $col_out --threads ${task.cpus} --qualitybase $PHRED
                 fastqc -q *.collapsed*q
                 """
             } else {
@@ -239,7 +245,7 @@ if (params.adna == true){
                 out2 = name+".pair2.truncated.fastq"
                 col_out = name+".collapsed.fastq"
                 """
-                AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus}
+                AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus} --qualitybase $PHRED
                 fastqc -q *.collapsed*q
                 """
             }
@@ -266,7 +272,7 @@ if (params.adna == true){
                 out2 = name+".pair2.truncated.fastq"
                 col_out = name+".collapsed.fastq"
                 """
-                AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus}
+                AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus} --qualitybase $PHRED
                 """
         }
     }
@@ -292,7 +298,7 @@ if (params.adna == true){
             out1 = name+".pair1.truncated.fastq"
             out2 = name+".pair2.truncated.fastq"
             """
-            AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --output1 $out1 --output2 $out2 --threads ${task.cpus}
+            AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --output1 $out1 --output2 $out2 --threads ${task.cpus} --qualitybase $PHRED
             fastqc -q *.truncated*
             """
     }
@@ -315,7 +321,7 @@ if (params.adna == true){
                 out1 = name+".pair1.truncated.fastq"
                 out2 = name+".pair2.truncated.fastq"
                 """
-                AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --output1 $out1 --output2 $out2 --threads ${task.cpus}
+                AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --output1 $out1 --output2 $out2 --threads ${task.cpus} --qualitybase $PHRED
                 """
         }
     }
@@ -403,8 +409,9 @@ if (params.adna == true){
                 sam_out = name+".sam"
                 fq_out = name+".unal.fastq"
                 metrics = name+".metrics"
+                quality = "--phred "+PHRED
                 """
-                bowtie2 -x ctrl_index -U $col_reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
+                bowtie2 -x ctrl_index -U $col_reads --no-sq --threads ${task.cpus} $btquality --un $fq_out 2> $metrics
                 """
 
         }
@@ -436,7 +443,7 @@ if (params.adna == true){
                 out2=name+".unal.2.fastq"
                 metrics = name+".metrics"
                 """
-                bowtie2 -x ctrl_index -1 $trun_read1 -2 $trun_read2 --no-sq --threads ${task.cpus} --un-conc $fq_out 2> $metrics
+                bowtie2 -x ctrl_index -1 $trun_read1 -2 $trun_read2 --no-sq $btquality --threads ${task.cpus} --un-conc $fq_out 2> $metrics
                 """
 
         }
@@ -475,7 +482,7 @@ if (params.ctrl != "none"){
                 fq_out = name+".human_unal.fastq"
                 metrics = name+".metrics"
                 """
-                bowtie2 -x ${params.hgindex} -U $reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
+                bowtie2 -x ${params.hgindex} -U $reads --no-sq $btquality --threads ${task.cpus} --un $fq_out 2> $metrics
                 """
 
         }
@@ -503,7 +510,7 @@ if (params.ctrl != "none"){
                 out2 = name+".human_unal.2.fastq"
                 metrics = name+".metrics"
                 """
-                bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq --threads ${task.cpus} --un-conc $fq_out 2> $metrics
+                bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq $btquality --threads ${task.cpus} --un-conc $fq_out 2> $metrics
                 """
 
         }
@@ -532,7 +539,7 @@ if (params.ctrl != "none"){
                 fq_out = name+".human_unal.fastq"
                 metrics = name+".metrics"
                 """
-                bowtie2 -x ${params.hgindex} -U $col_reads --no-sq --threads ${task.cpus} --un $fq_out 2> $metrics
+                bowtie2 -x ${params.hgindex} -U $col_reads --no-sq $btquality --threads ${task.cpus} --un $fq_out 2> $metrics
                 """
 
 
@@ -561,7 +568,7 @@ if (params.ctrl != "none"){
                 out2 = name+".human_unal.2.fastq"
                 metrics = name+".metrics"
                 """
-                bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq --threads ${task.cpus} --un-conc $fq_out 2> $metrics
+                bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq $btquality --threads ${task.cpus} --un-conc $fq_out 2> $metrics
                 """
         }
     }
@@ -600,7 +607,7 @@ if (params.adna == true ){
             sam_out = name+".sam"
             metrics = name+".metrics"
             """
-            bowtie2 -x ${params.btindex} -U $reads --end-to-end --threads ${task.cpus} -S $sam_out -a 2> $metrics
+            bowtie2 -x ${params.btindex} -U $reads --end-to-end $btquality --threads ${task.cpus} -S $sam_out -a 2> $metrics
             """
 
     }
@@ -626,7 +633,7 @@ if (params.adna == true ){
             sam_out = name+".sam"
             metrics = name+".metrics"
             """
-            bowtie2 -x ${params.btindex} -1 $read1 -2 $read2 --end-to-end --threads ${task.cpus} -S $sam_out -a 2> $metrics
+            bowtie2 -x ${params.btindex} -1 $read1 -2 $read2 --end-to-end $btquality --threads ${task.cpus} -S $sam_out -a 2> $metrics
             """
     }
 }
