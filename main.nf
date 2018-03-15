@@ -39,6 +39,7 @@ def helpMessage() {
       --reads                       Path to input data (must be surrounded with quotes)
 
     Options:
+      --singleEnd                   Specifies that the input is single end reads (true | false). Defaults to ${params.singleEnd}. Only available for aDNA reads samples.
       --ctrl                        Specifies control fastq sequencing data. Must be the same specified the same way as --reads. Defaults to ${params.ctrl}
       --aligner2                    Specifies the 2nd aligner to nt or nr db (respectively centrifuge or diamond). The proper db associated with aligner2 program must be specified. Defaults to ${params.aligner2}
       --adna                        Specifies if you have ancient dna (true) or modern dna (false). Defaults to ${params.adna}
@@ -76,6 +77,7 @@ params.ctrl = "none"
 params.results = "$PWD/results"
 
 // Script and configurations
+params.singleEnd = false
 params.adna = true
 params.multiqc_conf="$baseDir/conf/.multiqc_config.yaml"
 params.aligner2 = "diamond"
@@ -141,14 +143,21 @@ log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
 log.info "========================================="
 
 
+//Check for singleEnd ancientDNA sanity
+
+if (params.singleEnd == true && params.ancientDNA != true){
+    exit1, "Single End mode is only available for ancient DNA samples"
+}
+
 Channel
-    .fromFilePairs( params.reads, size: 2 )
-    .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}" }
+    .fromFilePairs( params.reads, size: params.singleEnd ? 1 : 2 )
+    .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nIf this is single-end data, please specify --singleEnd on the command line." } }
 	.into { raw_reads_fastqc; raw_reads_trimming }
+
 if (params.ctrl != "none"){
     Channel
         .fromFilePairs(params.ctrl, size: 2)
-        .ifEmpty { exit 1, "Cannot find any reads matching: ${params.ctrl}"}
+        .ifEmpty { exit 1, "Cannot find any reads matching: ${params.ctrl}\n Please note that single-end data is not supported for the control."}
         .into { raw_ctrl_fastqc; raw_ctrl_trimming }
 
 }
@@ -211,7 +220,6 @@ if (params.adna == true){
             set val(name), file(reads) from raw_reads_trimming
 
         output:
-            set val(name), file('*.truncated.fastq') into truncated_reads
             set val(name), file('*.collapsed.fastq') into collapsed_reads
             set val(name), file("*.settings") into adapter_removal_results
             file '*_fastqc.{zip,html}' into fastqc_results_after_trim
@@ -219,13 +227,22 @@ if (params.adna == true){
 
 
         script:
-            out1 = name+".pair1.truncated.fastq"
-            out2 = name+".pair2.truncated.fastq"
-            col_out = name+".collapsed.fastq"
-            """
-            AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus}
-            fastqc -q *.collapsed*q
-            """
+            if (params.singleEnd == true){
+                outSE = name+".truncated.fastq"
+                col_out = name+".collapsed.fastq"
+                """
+                AdapterRemoval --basename $name --file1 ${reads[0]} --trimns --trimqualities --collapse --output1 $outSE --outputcollapsed $col_out --threads ${task.cpus}
+                fastqc -q *.collapsed*q
+                """
+            } else {
+                out1 = name+".pair1.truncated.fastq"
+                out2 = name+".pair2.truncated.fastq"
+                col_out = name+".collapsed.fastq"
+                """
+                AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus}
+                fastqc -q *.collapsed*q
+                """
+            }
     }
 
     if (params.ctrl != "none"){
@@ -506,7 +523,6 @@ if (params.ctrl != "none"){
 
             input:
             set val(name), file(col_reads) from collapsed_reads
-            set val(name), file(trun_read1), file(trun_read2) from truncated_reads
 
             output:
                 set val(name), file('*.human_unal.fastq') into fq_unaligned_human_reads
