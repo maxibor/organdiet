@@ -1,8 +1,8 @@
 name: organdiet
 channels:
+  - maxibor
   - bnoon
   - bioconda
-  - maxibor
   - conda-forge
   - defaults
 dependencies:
@@ -287,4 +287,3 @@ dependencies:
     - backports.ssl-match-hostname==3.5.0.1
     - tables==3.4.2
 prefix: /home/maxime/miniconda3/envs/organdiet
-
