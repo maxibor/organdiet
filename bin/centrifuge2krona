@@ -40,7 +40,7 @@ def get_args():
     infile = args.infile
     index = args.index
     unique = args.unique
-    taxo = arg.tax
+    taxo = args.tax
     minlen = str(args.minlen)
     minscore = str(args.minscore)
     outpath = args.outpath
