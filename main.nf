@@ -93,7 +93,7 @@ params.btindex = "$baseDir/organellome_db/organellome"
 params.hgindex = "$baseDir/hs_genome/Homo_sapiens_Ensembl_GRCh37/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome"
 params.nrdb = "$baseDir/nr_diamond_db/nr"
 params.centrifugedb = "$baseDir/nt_db/nt"
-params.bastadb = scriptdir+"BASTA/taxonomy"
+params.bastadb = "$basedir/taxonomy"
 
 // BASTA (LCA) parameters
 params.bastamode = "majority"
