@@ -26,8 +26,8 @@ nextflow run maxibor/organdiet --reads '*_R{1,2}.fastq.gz' -with-report run_repo
 
 ### 1. Set up conda environments
 ```
-wget https://github.com/maxibor/organdiet/archive/v0.2.1.zip
-unzip v0.2.1.zip
+wget https://github.com/maxibor/organdiet/archive/v0.2.2.zip
+unzip v0.2.2.zip
 cd organdiet-0.2.2
 conda env create -f envs/organdiet.yml
 source activate organdiet
