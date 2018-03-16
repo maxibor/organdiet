@@ -11,19 +11,32 @@
 
 - [Conda](https://conda.io/miniconda.html)  
 
+# Quick start
+Assuming you already have all databases and the conda environment installed
+
+```
+conda activate organdiet
+nextflow run maxibor/organdiet --reads '*_R{1,2}.fastq.gz' -with-report run_report.html -with-dag flowchart.png
+```
+
+
 # Installation
+
+
 
 ### 1. Set up conda environments
 ```
 wget https://github.com/maxibor/organdiet/archive/v0.2.1.zip
 unzip v0.2.1.zip
-cd organdiet-0.2.1
+cd organdiet-0.2.2
 conda env create -f envs/organdiet.yml
-conda env create -f envs/py36.yml
 source activate organdiet
 ```
+### 2. Set up Taxonomy database
 
-### 2. Download the Bowtie2 index for the host genome
+- Install taxonomy database: `./bin/basta taxonomy -o ./taxonomy`
+
+### 3. Download the Bowtie2 index for the host genome
 From [illumina **iGenomes**](https://support.illumina.com/sequencing/sequencing_software/igenome.html)
 
 ```
@@ -34,7 +47,7 @@ tar -xvzf Homo_sapiens_Ensembl_GRCh37.tar.gz
 cd ..
 ```
 
-### 3. Download the organellome database and build Bowtie2 index
+### 4. Download the organellome database and build Bowtie2 index
 From NCBI [Refseq organelles genomes](https://www.ncbi.nlm.nih.gov/genome/organelle/)
 ```
 ./bin/download_organellome_db.sh
@@ -42,13 +55,9 @@ bowtie2-build organellome_db/organellome.fa organellome_db/organellome
 ```
 
 
-### 3. Case 1: You plan on using the nr database
+### 4. Case 1: You plan on using the nr database
 
-#### 3.1 Set up BASTA databases
-- Install taxonomy database: `./bin/basta taxonomy`
-- Install *prot* database:   `./bin/basta download prot`
-
-#### 3.2 Set up `nr` database for [Diamond](https://github.com/bbuchfink/diamond)
+#### 4.1.1 Set up `nr` database for [Diamond](https://github.com/bbuchfink/diamond)
 ```
 mkdir nr_diamond_db
 cd nr_diamond_db
@@ -59,9 +68,14 @@ diamond makedb --in nr.fa -d nr
 cd ..
 ```
 
-### 3. Case 2: You plan on using the nt database
+### 4..1.1 Set up TaxID mapping database
 
-#### 3.1 Download and extract the centrifuge database
+
+- Install *prot* database:   `./bin/basta download prot -d ./taxonomy`
+
+### 4. Case 2: You plan on using the nt database
+
+#### 4.1.1 Download and extract the centrifuge database
 
 ```
 mkdir nt_db
@@ -72,13 +86,9 @@ cd ..
 ```
 
 
+### 4.1.2 Set up TaxID mapping database
 
-
-# Run Example
-
-```
-nextflow run maxibor/organdiet --reads '*_R{1,2}.fastq.gz' -with-report run_report.html -with-dag flowchart.png
-```
+- Install *gb* database:   `./bin/basta download gb -d ./taxonomy`
 
 # Get help
 
