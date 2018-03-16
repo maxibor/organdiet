@@ -769,7 +769,7 @@ if (params.aligner2 == "diamond"){
 
         script:
             """
-            python $centrifuge2krona -index ${params.centrifugedb} -tax ${params.bastadb}
+            python $centrifuge2krona -index ${params.centrifugedb} -tax ${params.bastadb} $centrifuge_aligned
             """
     }
 }
