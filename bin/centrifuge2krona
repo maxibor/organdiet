@@ -78,9 +78,9 @@ if __name__ == "__main__":
         os.system(cmd)
         if not taxo:
             cmd = "ktImportTaxonomy -q 2 -t 5 -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_onlyUnique_minScore_"+minscore+"_minLength_"+minlen+".out"
-            prind(cmd)
+            print(cmd)
             os.system(cmd)
         else:
             cmd = "ktImportTaxonomy -q 2 -t 5 -tax "+taxo+" -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_onlyUnique_minScore_"+minscore+"_minLength_"+minlen+".out"
-            prind(cmd)
+            print(cmd)
             os.system(cmd)
