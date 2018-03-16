@@ -71,13 +71,6 @@ wget http://som1.ific.uv.es/nt/nt.cf.7z
 cd ..
 ```
 
-#### 3.2 Set up the recentrifuge taxonomy database
-```
-source activate py36
-./bin/recentrifuge/retaxdump.py
-source deactivate
-```
-
 
 
 
@@ -107,7 +100,6 @@ The OrganDiet pipeline uses many tools listed below:
 - [Diamond](https://github.com/bbuchfink/diamond)
 - [Centrifuge](https://ccb.jhu.edu/software/centrifuge/manual.shtml)
 - [BASTA](https://github.com/timkahlke/BASTA)
-- [ReCentrifuge](https://github.com/khyox/recentrifuge)
 - [Krona](https://github.com/marbl/Krona/wiki)
 - [Nextflow](https://www.nextflow.io/)
 
