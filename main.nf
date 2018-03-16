@@ -58,8 +58,6 @@ def helpMessage() {
       --nrdb                        Path to diamond nr db index. Used if --aligner2 is set to diamond. Defaults to ${params.nrdb}
       --bastadb                     Path to recentrifuge taxonomy db. Must be specified if --aligner2 is centrifuge. Defaults to ${params.bastadb}
       --centrifugedb                Path to centrifuge nt db index. Used if --aligner2 is set to centrifuge. Defaults to ${params.centrifugedb}
-      --recentrifugedb              Path to recentrifuge taxonomy db. Used if --aligner2 is set to centrifuge. Defaults to ${params.recentrifugedb}
-
 
     Other options:
       --results                     Name of result directory. Defaults to ${params.results}
@@ -85,6 +83,7 @@ params.multiqc_conf="$baseDir/conf/.multiqc_config.yaml"
 params.aligner2 = "diamond"
 scriptdir = "$baseDir/bin/"
 py_specie = scriptdir+"process_mapping.py"
+centrifuge2krona=scriptdir+"centrifuge2krona"
 recentrifuge = scriptdir+"recentrifuge/recentrifuge.py"
 basta = scriptdir+"BASTA/bin/basta"
 basta2krona = scriptdir+"BASTA/scripts/basta2krona.py"
@@ -94,7 +93,6 @@ params.btindex = "$baseDir/organellome_db/organellome"
 params.hgindex = "$baseDir/hs_genome/Homo_sapiens_Ensembl_GRCh37/Homo_sapiens/Ensembl/GRCh37/Sequence/Bowtie2Index/genome"
 params.nrdb = "$baseDir/nr_diamond_db/nr"
 params.centrifugedb = "$baseDir/nt_db/nt"
-params.recentrifugedb = scriptdir+"recentrifuge/taxdump"
 params.bastadb = scriptdir+"BASTA/taxonomy"
 
 // BASTA (LCA) parameters
@@ -734,25 +732,44 @@ if (params.aligner2 == "diamond"){
 /*
 * STEP 10 - Assign LCA - Krona output
 */
-    process recentrifuge {
+    // process recentrifuge {
+    //     tag "${centrifuge_aligned[0].baseName}"
+    //
+    //     beforeScript "set +u; source activate py36"
+    //     afterScript "set +u; source deactivate py36"
+    //
+    //     publishDir "${params.results}/krona", mode: 'copy',
+    //         saveAs: {filename ->  "./$filename"}
+    //
+    //     input:
+    //         file centrifuge_aligned from nt_aligned.toList()
+    //
+    //     output:
+    //         file("recentrifuge_result.html") into recentrifuge_result
+    //
+    //     script:
+    //         allfiles = centrifuge_aligned.join(" -f ")
+    //         """
+    //         $recentrifuge -f $allfiles -n ${params.recentrifugedb} -o recentrifuge_result.html
+    //         """
+    // }
+
+    process CentrifugeToKrona {
         tag "${centrifuge_aligned[0].baseName}"
 
-        beforeScript "set +u; source activate py36"
-        afterScript "set +u; source deactivate py36"
 
         publishDir "${params.results}/krona", mode: 'copy',
             saveAs: {filename ->  "./$filename"}
 
         input:
-            file centrifuge_aligned from nt_aligned.toList()
+            file centrifuge_aligned from nt_aligned
 
         output:
-            file("recentrifuge_result.html") into recentrifuge_result
+            file("*_krona.html") into recentrifuge_result
 
         script:
-            allfiles = centrifuge_aligned.join(" -f ")
             """
-            $recentrifuge -f $allfiles -n ${params.recentrifugedb} -o recentrifuge_result.html
+            python $centrifuge2krona -index ${params.centrifugedb} -tax ${params.bastadb}
             """
     }
 }
