@@ -30,7 +30,7 @@ Pipeline overview:
 def helpMessage() {
     log.info"""
     =========================================
-     OrganDiet version ${version}
+     OrganDiet version ${version}, last updated on ${version_date}
     =========================================
     Usage:
     The typical command for running the pipeline is as follows:
@@ -66,7 +66,8 @@ def helpMessage() {
 }
 
 //Pipeline version
-version = "0.2.1"
+version = "0.2.2"
+version_date = "March 16th, 2018"
 
 params.reads = "*_{1,2}.fastq.gz"
 params.ctrl = "none"
@@ -236,7 +237,7 @@ if (params.adna == true){
                 col_out = name+".collapsed.fastq"
                 """
                 AdapterRemoval --basename $name --file1 ${reads[0]} --trimns --trimqualities --collapse --output1 $outSE --outputcollapsed $col_out --threads ${task.cpus} --qualitybase $PHRED
-                fastqc -q *.collapsed*q
+                fastqc -q *.collapsed*
                 """
             } else {
                 out1 = name+".pair1.truncated.fastq"
@@ -244,7 +245,7 @@ if (params.adna == true){
                 col_out = name+".collapsed.fastq"
                 """
                 AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus} --qualitybase $PHRED
-                fastqc -q *.collapsed*q
+                fastqc -q *.collapsed*
                 """
             }
     }
@@ -721,6 +722,7 @@ if (params.aligner2 == "diamond"){
 
         output:
             file("*.centrifuge.out") into nt_aligned
+            file("_centrifuge_report.tsv") into nt_aligned_report
 
         script:
             centrifuge_out = name+".centrifuge.out"
