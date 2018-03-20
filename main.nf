@@ -66,8 +66,8 @@ def helpMessage() {
 }
 
 //Pipeline version
-version = "0.2.2"
-version_date = "March 16th, 2018"
+version = "0.2.3"
+version_date = "March 20th, 2018"
 
 params.reads = "*_{1,2}.fastq.gz"
 params.ctrl = "none"
@@ -214,32 +214,47 @@ if (params.ctrl != "none"){
 
 
 if (params.adna == true){
-    process adapter_removal_ancient_dna {
-        tag "$name"
 
-        cpus = params.trimmingCPU
+    if (params.singleEnd == true){
+        process adapter_removal_ancient_dna {
+            tag "$name"
 
-        publishDir "${params.results}/trimmed", mode: 'copy'
+            cpus = params.trimmingCPU
 
-        input:
-            set val(name), file(reads) from raw_reads_trimming
+            publishDir "${params.results}/trimmed", mode: 'copy'
 
-        output:
-            set val(name), file('*.collapsed.fastq') into collapsed_reads
-            set val(name), file("*.settings") into adapter_removal_results
-            file '*_fastqc.{zip,html}' into fastqc_results_after_trim
+            input:
+                set val(name), file(reads) from raw_reads_trimming
 
+            output:
+                set val(name), file('*.truncated.fastq') into trimmed_reads
+                set val(name), file("*.settings") into adapter_removal_results
+                file '*_fastqc.{zip,html}' into fastqc_results_after_trim
 
-
-        script:
-            if (params.singleEnd == true){
+            script:
                 outSE = name+".truncated.fastq"
-                col_out = name+".collapsed.fastq"
                 """
-                AdapterRemoval --basename $name --file1 ${reads[0]} --trimns --trimqualities --collapse --output1 $outSE --outputcollapsed $col_out --threads ${task.cpus} --qualitybase $PHRED
-                fastqc -q *.collapsed*
+                AdapterRemoval --basename $name --file1 ${reads[0]} --trimns --trimqualities --output1 $outSE --threads ${task.cpus} --qualitybase $PHRED
+                fastqc -q *.truncated*
                 """
-            } else {
+        }
+    } else {
+        process adapter_removal_ancient_dna {
+            tag "$name"
+
+            cpus = params.trimmingCPU
+
+            publishDir "${params.results}/trimmed", mode: 'copy'
+
+            input:
+                set val(name), file(reads) from raw_reads_trimming
+
+            output:
+                set val(name), file('*.collapsed.fastq') into trimmed_reads
+                set val(name), file("*.settings") into adapter_removal_results
+                file '*_fastqc.{zip,html}' into fastqc_results_after_trim
+
+            script:
                 out1 = name+".pair1.truncated.fastq"
                 out2 = name+".pair2.truncated.fastq"
                 col_out = name+".collapsed.fastq"
@@ -247,8 +262,10 @@ if (params.adna == true){
                 AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus} --qualitybase $PHRED
                 fastqc -q *.collapsed*
                 """
-            }
+        }
     }
+
+
 
     if (params.ctrl != "none"){
         process adapter_removal_ctrl_ancient_dna {
@@ -397,7 +414,7 @@ if (params.adna == true){
                 }
 
             input:
-                set val(name), file(col_reads) from collapsed_reads
+                set val(name), file(col_reads) from trimmed_reads
                 file bt_index from ctrl_index.collect()
 
             output:
@@ -481,7 +498,7 @@ if (params.ctrl != "none"){
                 fq_out = name+".human_unal.fastq"
                 metrics = name+".metrics"
                 """
-                bowtie2 -x ${params.hgindex} -U $reads --no-sq $btquality --threads ${task.cpus} --un $fq_out 2> $metrics
+                bowtie2 -x ${params.hgindex} -U $reads --no-sq $btquality --threads ${task.cpus} --un $fq_out --end-to-end --very-fast 2> $metrics
                 """
 
         }
@@ -509,7 +526,7 @@ if (params.ctrl != "none"){
                 out2 = name+".human_unal.2.fastq"
                 metrics = name+".metrics"
                 """
-                bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq $btquality --threads ${task.cpus} --un-conc $fq_out 2> $metrics
+                bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq $btquality --threads ${task.cpus} --un-conc $fq_out --end-to-end --very-fast 2> $metrics
                 """
 
         }
@@ -528,7 +545,7 @@ if (params.ctrl != "none"){
                 }
 
             input:
-            set val(name), file(col_reads) from collapsed_reads
+            set val(name), file(col_reads) from trimmed_reads
 
             output:
                 set val(name), file('*.human_unal.fastq') into fq_unaligned_human_reads
@@ -538,7 +555,7 @@ if (params.ctrl != "none"){
                 fq_out = name+".human_unal.fastq"
                 metrics = name+".metrics"
                 """
-                bowtie2 -x ${params.hgindex} -U $col_reads --no-sq $btquality --threads ${task.cpus} --un $fq_out 2> $metrics
+                bowtie2 -x ${params.hgindex} -U $col_reads --no-sq $btquality --threads ${task.cpus} --un $fq_out --end-to-end --very-fast 2> $metrics
                 """
 
 
@@ -567,7 +584,7 @@ if (params.ctrl != "none"){
                 out2 = name+".human_unal.2.fastq"
                 metrics = name+".metrics"
                 """
-                bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq $btquality --threads ${task.cpus} --un-conc $fq_out 2> $metrics
+                bowtie2 -x ${params.hgindex} -1 $trun_read1 -2 $trun_read2 --no-sq $btquality --threads ${task.cpus} --un-conc $fq_out --end-to-end --very-fast 2> $metrics
                 """
         }
     }
