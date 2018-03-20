@@ -7,7 +7,7 @@ def get_args():
     '''This function parses and return arguments passed in'''
     parser = argparse.ArgumentParser(
     prog='CentrifugeToKrona',
-    description='Centrifuge output to krona visualisation')
+    description='Centrifuge output to krona visualisation. Necessitate Centrifuge version >= 1.0.4')
     parser.add_argument('infile', help="path to centrifuge output file")
     parser.add_argument(
     '-index',
@@ -19,9 +19,9 @@ def get_args():
     help="Krona taxonomy directory. Krona's default")
 
     parser.add_argument(
-    '-unique',
+    '-lca',
     default=True,
-    help="Keep only reads that map uniquely to one taxon. Default = True")
+    help="Compute LCA when multiple matches for one db seq (True | False). Default = True")
     parser.add_argument(
     '-minlen',
     default=30,
@@ -39,14 +39,14 @@ def get_args():
 
     infile = args.infile
     index = args.index
-    unique = args.unique
+    lca = args.lca
     taxo = args.tax
     minlen = str(args.minlen)
     minscore = str(args.minscore)
     outpath = args.outpath
 
 
-    return(infile, index, taxo, unique, minlen, minscore, outpath)
+    return(infile, index, taxo, lca, minlen, minscore, outpath)
 
 def get_basename(file_name):
     if ("/") in file_name:
@@ -57,11 +57,11 @@ def get_basename(file_name):
 
 
 if __name__ == "__main__":
-    infile, index, taxo, unique, minlen, minscore, outpath = get_args()
+    infile, index, taxo, lca, minlen, minscore, outpath = get_args()
 
     basename = get_basename(infile)
-    if unique == True:
-        cmd = "centrifuge-kreport -x "+index+" --only-unique --min-score "+minscore+" --min-length "+minlen+" "+infile+ " > "+basename+"_centriKraken_onlyUnique_minScore_"+minscore+"_minLength_"+minlen+".out"
+    if lca == True:
+        cmd = "centrifuge-kreport -x "+index+" --min-score "+minscore+" --min-length "+minlen+" "+infile+ " > "+basename+"_centriKraken_onlyUnique_minScore_"+minscore+"_minLength_"+minlen+".out"
         print(cmd)
         os.system(cmd)
         if not taxo:
@@ -73,7 +73,7 @@ if __name__ == "__main__":
             print(cmd)
             os.system(cmd)
     else:
-        cmd = "centrifuge-kreport -x "+index+" --min-score "+minscore+" --min-length "+minlen+" "+infile+" > "+basename+"_centriKraken_minScore_"+minscore+"_minLength_"+minlen+".out"
+        cmd = "centrifuge-kreport -x "+index+" --no-lca --min-score "+minscore+" --min-length "+minlen+" "+infile+" > "+basename+"_centriKraken_minScore_"+minscore+"_minLength_"+minlen+".out"
         print(cmd)
         os.system(cmd)
         if not taxo:

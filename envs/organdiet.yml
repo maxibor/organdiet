@@ -42,7 +42,7 @@ dependencies:
   - xz=5.2.3=h55aa19d_2
   - zlib=1.2.11=ha838bed_2
   - adapterremoval2=2.2.2=h3d7e249_0
-  - centrifuge_full=1.0.3=py27pl526_0
+  - centrifuge_full=1.0.4
   - pip:
     - backports.functools-lru-cache==1.5
     - chardet==3.0.4
