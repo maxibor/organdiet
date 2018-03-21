@@ -61,26 +61,26 @@ if __name__ == "__main__":
 
     basename = get_basename(infile)
     if lca == True:
-        cmd = "centrifuge-kreport -x "+index+" --min-score "+minscore+" --min-length "+minlen+" "+infile+ " > "+basename+"_centriKraken_onlyUnique_minScore_"+minscore+"_minLength_"+minlen+".out"
+        cmd = "centrifuge-kreport -x "+index+" --min-score "+minscore+" --min-length "+minlen+" "+infile+ " > "+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+".out"
         print(cmd)
         os.system(cmd)
         if not taxo:
-            cmd = "ktImportTaxonomy -q 2 -t 5 -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_onlyUnique_minScore_"+minscore+"_minLength_"+minlen+".out"
+            cmd = "ktImportTaxonomy -q 2 -t 5 -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+".out"
             print(cmd)
             os.system(cmd)
         else:
-            cmd = "ktImportTaxonomy -q 2 -t 5 -tax "+taxo+" -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_onlyUnique_minScore_"+minscore+"_minLength_"+minlen+".out"
+            cmd = "ktImportTaxonomy -q 2 -t 5 -tax "+taxo+" -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+".out"
             print(cmd)
             os.system(cmd)
     else:
-        cmd = "centrifuge-kreport -x "+index+" --no-lca --min-score "+minscore+" --min-length "+minlen+" "+infile+" > "+basename+"_centriKraken_minScore_"+minscore+"_minLength_"+minlen+".out"
+        cmd = "centrifuge-kreport -x "+index+" --no-lca --min-score "+minscore+" --min-length "+minlen+" "+infile+" > "+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+".out"
         print(cmd)
         os.system(cmd)
         if not taxo:
-            cmd = "ktImportTaxonomy -q 2 -t 5 -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_onlyUnique_minScore_"+minscore+"_minLength_"+minlen+".out"
+            cmd = "ktImportTaxonomy -q 2 -t 5 -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+".out"
             print(cmd)
             os.system(cmd)
         else:
-            cmd = "ktImportTaxonomy -q 2 -t 5 -tax "+taxo+" -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_onlyUnique_minScore_"+minscore+"_minLength_"+minlen+".out"
+            cmd = "ktImportTaxonomy -q 2 -t 5 -tax "+taxo+" -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+".out"
             print(cmd)
             os.system(cmd)
