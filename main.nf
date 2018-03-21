@@ -30,7 +30,8 @@ Pipeline overview:
 def helpMessage() {
     log.info"""
     =========================================
-     OrganDiet version ${version}, last updated on ${version_date}
+     OrganDiet version ${version}
+     Last updated on ${version_date}
     =========================================
     Usage:
     The typical command for running the pipeline is as follows:
@@ -66,7 +67,7 @@ def helpMessage() {
 }
 
 //Pipeline version
-version = "0.2.4"
+version = "0.2.5"
 version_date = "March 21th, 2018"
 
 params.reads = "*_{1,2}.fastq.gz"
@@ -120,6 +121,7 @@ if (params.help || params.h){
 // Header log info
 log.info "========================================="
 log.info " OrganDiet version ${version}"
+log.info " Last updated on ${version_date}"
 log.info "========================================="
 def summary = [:]
 summary['Reads']        = params.reads
@@ -255,8 +257,8 @@ if (params.adna == true){
                 file '*_fastqc.{zip,html}' into fastqc_results_after_trim
 
             script:
-                out1 = name+".pair1.truncated.fastq"
-                out2 = name+".pair2.truncated.fastq"
+                out1 = name+".pair1.discarded.fastq"
+                out2 = name+".pair2.discarded.fastq"
                 col_out = name+".collapsed.fastq"
                 """
                 AdapterRemoval --basename $name --file1 ${reads[0]} --file2 ${reads[1]} --trimns --trimqualities --collapse --output1 $out1 --output2 $out2 --outputcollapsed $col_out --threads ${task.cpus} --qualitybase $PHRED
@@ -751,27 +753,6 @@ if (params.aligner2 == "diamond"){
 /*
 * STEP 10 - Assign LCA - Krona output
 */
-    // process recentrifuge {
-    //     tag "${centrifuge_aligned[0].baseName}"
-    //
-    //     beforeScript "set +u; source activate py36"
-    //     afterScript "set +u; source deactivate py36"
-    //
-    //     publishDir "${params.results}/krona", mode: 'copy',
-    //         saveAs: {filename ->  "./$filename"}
-    //
-    //     input:
-    //         file centrifuge_aligned from nt_aligned.toList()
-    //
-    //     output:
-    //         file("recentrifuge_result.html") into recentrifuge_result
-    //
-    //     script:
-    //         allfiles = centrifuge_aligned.join(" -f ")
-    //         """
-    //         $recentrifuge -f $allfiles -n ${params.recentrifugedb} -o recentrifuge_result.html
-    //         """
-    // }
 
     process CentrifugeToKrona {
         tag "${centrifuge_aligned[0].baseName}"
@@ -861,7 +842,6 @@ if (params.adna == true){
         output:
             file '*multiqc_report.html' into multiqc_report
             file '*_data' into multiqc_data
-            file '*.command.err' into multiqc_stderr
 
         script:
             prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc_before_trimming/'
@@ -887,7 +867,6 @@ if (params.adna == true){
         output:
             file '*multiqc_report.html' into multiqc_report
             file '*_data' into multiqc_data
-            file '.command.err' into multiqc_stderr
 
         script:
             prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc_before_trimming/'
