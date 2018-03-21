@@ -67,7 +67,7 @@ def helpMessage() {
 
 //Pipeline version
 version = "0.2.4"
-version_date = "March 20th, 2018"
+version_date = "March 21th, 2018"
 
 params.reads = "*_{1,2}.fastq.gz"
 params.ctrl = "none"
