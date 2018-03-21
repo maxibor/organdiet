@@ -739,7 +739,7 @@ if (params.aligner2 == "diamond"){
 
         output:
             file("*.centrifuge.out") into nt_aligned
-            file("_centrifuge_report.tsv") into nt_aligned_report
+            file("*_centrifuge_report.tsv") into nt_aligned_report
 
         script:
             centrifuge_out = name+".centrifuge.out"
@@ -861,7 +861,7 @@ if (params.adna == true){
         output:
             file '*multiqc_report.html' into multiqc_report
             file '*_data' into multiqc_data
-            file '.command.err' into multiqc_stderr
+            file '*.command.err' into multiqc_stderr
 
         script:
             prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc_before_trimming/'
