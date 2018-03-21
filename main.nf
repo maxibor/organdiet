@@ -216,7 +216,7 @@ if (params.ctrl != "none"){
 if (params.adna == true){
 
     if (params.singleEnd == true){
-        process adapter_removal_ancient_dna {
+        process adapter_removal_ancient_dna_SE {
             tag "$name"
 
             cpus = params.trimmingCPU
@@ -239,7 +239,7 @@ if (params.adna == true){
                 """
         }
     } else {
-        process adapter_removal_ancient_dna {
+        process adapter_removal_ancient_dna_PE {
             tag "$name"
 
             cpus = params.trimmingCPU
