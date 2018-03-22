@@ -68,7 +68,7 @@ def helpMessage() {
 
 //Pipeline version
 version = "0.2.5"
-version_date = "March 21th, 2018"
+version_date = "March 22nd, 2018"
 
 params.reads = "*_{1,2}.fastq.gz"
 params.ctrl = "none"
@@ -812,6 +812,7 @@ if (params.aligner2 == "diamond"){
 
         output:
             set val(name), file("*.krona.html") into krona_res
+            set val(name), file("*_centriKraken_") into centri2kraken
 
         script:
             krona_out = name+".krona.html"

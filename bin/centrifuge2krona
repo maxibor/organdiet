@@ -31,9 +31,15 @@ def get_args():
     default=256,
     help="Minimum centrifuge score to keep read. Default = 256")
     parser.add_argument(
+    '-minhits',
+    default=5,
+    help="Minimum number of hits to include in krona chart"
+    )
+    parser.add_argument(
     '-outpath',
     default="./",
     help="Output directory. Default = ./")
+
 
     args = parser.parse_args()
 
@@ -43,10 +49,11 @@ def get_args():
     taxo = args.tax
     minlen = str(args.minlen)
     minscore = str(args.minscore)
+    minhits = args.minhits
     outpath = args.outpath
 
 
-    return(infile, index, taxo, lca, minlen, minscore, outpath)
+    return(infile, index, taxo, lca, minlen, minscore, minhits, outpath)
 
 def get_basename(file_name):
     if ("/") in file_name:
@@ -57,30 +64,34 @@ def get_basename(file_name):
 
 
 if __name__ == "__main__":
-    infile, index, taxo, lca, minlen, minscore, outpath = get_args()
+    infile, index, taxo, lca, minlen, minscore, minhits, outpath = get_args()
 
     basename = get_basename(infile)
     if lca == True:
         cmd = "centrifuge-kreport -x "+index+" --min-score "+minscore+" --min-length "+minlen+" "+infile+ " > "+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+".out"
         print(cmd)
         os.system(cmd)
+        cmd = "awk '$2 > "+str(minhits)+"' "+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+".out > "+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+"_minhit"+str(minhits)+".out"
+        os.system(cmd)
         if not taxo:
-            cmd = "ktImportTaxonomy -q 2 -t 5 -m 3-o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+".out"
+            cmd = "ktImportTaxonomy -q 2 -s 1 -t 5 -m 2 -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+"_minhit"+str(minhits)+".out"
             print(cmd)
             os.system(cmd)
         else:
-            cmd = "ktImportTaxonomy -q 2 -t 5 -m 3 -tax "+taxo+" -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+".out"
+            cmd = "ktImportTaxonomy -q 2 -s 1 -t 5 -m 2 -tax "+taxo+" -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_LCA_minScore_"+minscore+"_minLength_"+minlen+"_minhit"+str(minhits)+".out"
             print(cmd)
             os.system(cmd)
     else:
         cmd = "centrifuge-kreport -x "+index+" --no-lca --min-score "+minscore+" --min-length "+minlen+" "+infile+" > "+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+".out"
         print(cmd)
         os.system(cmd)
+        cmd = "awk '$2 > "+str(minhits)+"' "+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+".out > "+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+"_minhit"+str(minhits)+".out"
+        os.system(cmd)
         if not taxo:
-            cmd = "ktImportTaxonomy -q 2 -t 5 -m 3 -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+".out"
+            cmd = "ktImportTaxonomy -q 2 -s 1 -t 5 -m 2 -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+"_minhit"+str(minhits)+".out"
             print(cmd)
             os.system(cmd)
         else:
-            cmd = "ktImportTaxonomy -q 2 -t 5 -m 3 -tax "+taxo+" -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+".out"
+            cmd = "ktImportTaxonomy -q 2 -s 1 -t 5 -m 2 -tax "+taxo+" -o "+basename+"_krona.html "+outpath+"/"+basename+"_centriKraken_noLCA_minScore_"+minscore+"_minLength_"+minlen+"_minhit"+str(minhits)+".out"
             print(cmd)
             os.system(cmd)
