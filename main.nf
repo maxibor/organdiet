@@ -766,6 +766,7 @@ if (params.aligner2 == "diamond"){
 
         output:
             file("*_krona.html") into recentrifuge_result
+            file("*_minhit*.out") into filtered_kraken_style_report
 
         script:
             """
@@ -827,53 +828,102 @@ if (params.aligner2 == "diamond"){
 * STEP 11 - Generate MultiQC run summary
 */
 if (params.adna == true){
-    process multiqc_no_control {
-        tag "$prefix"
+    if (params.ctrl != "none"){
+        process multiqc_ancient_dna_no_control {
+            tag "$prefix"
 
-        publishDir "${params.results}/MultiQC", mode: 'copy'
+            publishDir "${params.results}/MultiQC", mode: 'copy'
 
+            input:
+                file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
+                file ('adapter_removal/*') from adapter_removal_results.collect()
+                file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
+                file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
+                file('aligned_to_human/*') from human_aln_metrics.collect()
+                file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
 
-        input:
-            file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
-            file ('adapter_removal/*') from adapter_removal_results.collect()
-            file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
-            file('aligned_to_human/*') from human_aln_metrics.collect()
-            file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
+            output:
+                file '*multiqc_report.html' into multiqc_report
+                file '*_data' into multiqc_data
 
-        output:
-            file '*multiqc_report.html' into multiqc_report
-            file '*_data' into multiqc_data
+            script:
+                prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc_before_trimming/'
+                """
+                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB aligned_to_blank -c ${params.multiqc_conf}
+                """
+        }
+    } else {
+        process multiqc_ancient_dna_no_control {
+            tag "$prefix"
 
-        script:
-            prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc_before_trimming/'
-            """
-            multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
-            """
+            publishDir "${params.results}/MultiQC", mode: 'copy'
 
+            input:
+                file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
+                file ('adapter_removal/*') from adapter_removal_results.collect()
+                file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
+                file('aligned_to_human/*') from human_aln_metrics.collect()
+                file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
+
+            output:
+                file '*multiqc_report.html' into multiqc_report
+                file '*_data' into multiqc_data
+
+            script:
+                prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc_before_trimming/'
+                """
+                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+                """
+        }
     }
+
 } else {
-    process multiqc_with_control {
-        tag "$prefix"
+    if (params.ctrl != "none"){
+        process multiqc_modern_dna_with_control {
+            tag "$prefix"
 
-        publishDir "${params.results}/MultiQC", mode: 'copy'
+            publishDir "${params.results}/MultiQC", mode: 'copy'
 
-        input:
-            file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
-            file ('adapter_removal/*') from adapter_removal_results.collect()
-            file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
-            file('aligned_to_human/*') from human_aln_metrics.collect()
-            file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
-            file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
+            input:
+                file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
+                file ('adapter_removal/*') from adapter_removal_results.collect()
+                file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
+                file('aligned_to_blank/*') from ctrl_aln_metrics.collect()
+                file('aligned_to_human/*') from human_aln_metrics.collect()
+                file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
 
-        output:
-            file '*multiqc_report.html' into multiqc_report
-            file '*_data' into multiqc_data
+            output:
+                file '*multiqc_report.html' into multiqc_report
+                file '*_data' into multiqc_data
 
-        script:
-            prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc_before_trimming/'
-            """
-            multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
-            """
+            script:
+                prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc_before_trimming/'
+                """
+                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_blank aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+                """
+        }
+    } else {
+        process multiqc_modern_dna_with_control {
+            tag "$prefix"
 
+            publishDir "${params.results}/MultiQC", mode: 'copy'
+
+            input:
+                file (fastqc:'fastqc_before_trimming/*') from fastqc_results.collect()
+                file ('adapter_removal/*') from adapter_removal_results.collect()
+                file("fastqc_after_trimming/*") from fastqc_results_after_trim.collect()
+                file('aligned_to_human/*') from human_aln_metrics.collect()
+                file('aligned_to_organellomeDB/*') from organellome_aln_metrics.collect()
+
+            output:
+                file '*multiqc_report.html' into multiqc_report
+                file '*_data' into multiqc_data
+
+            script:
+                prefix = fastqc[0].toString() - '_fastqc.html' - 'fastqc_before_trimming/'
+                """
+                multiqc -f -d fastqc_before_trimming adapter_removal fastqc_after_trimming aligned_to_human aligned_to_organellomeDB -c ${params.multiqc_conf}
+                """
+        }
     }
 }

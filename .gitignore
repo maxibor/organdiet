@@ -8,3 +8,4 @@ data/*
 work/*
 flowchart.*
 run_report.*
+*.nf.conf

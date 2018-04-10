@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 
-import sys
 import argparse
+import requests
+
 
 def get_args():
     '''This function parses and return arguments passed in'''
     parser = argparse.ArgumentParser(
-    prog='Blast search from csv results',
-    description='From a csv file, perform blast search to return LCA')
+        prog='Blast search from csv results',
+        description='From a csv file, perform blast search to return LCA')
     parser.add_argument('infile', help="path to csv file")
     parser.add_argument(
-    '-threads',
-    default=4,
-    help="Number of threads to use for blast")
+        '-threads',
+        default=4,
+        help="Number of threads to use for blast")
 
     args = parser.parse_args()
 
@@ -21,13 +22,13 @@ def get_args():
 
     return(infile, threads)
 
+
 def get_basename(samfile_name):
     if ("/") in samfile_name:
         basename = samfile_name.split("/")[-1].split(".")[0]
     else:
         basename = samfile_name.split(".")[0]
     return(basename)
-
 
 
 def common_ancestor(ncbi_id):
@@ -42,11 +43,12 @@ def common_ancestor(ncbi_id):
     """
 
     ncbi_id = ",".join(ncbi_id)
-    request = "http://taxonomy.jgi-psf.org/sc/name/ancestor/c"+ncbi_id
+    request = "http://taxonomy.jgi-psf.org/sc/name/ancestor/c" + ncbi_id
     response = requests.get(request)
     answer = response.text
     specie = answer.split(":")[-1]
-    return(common_ancestor)
+    return(specie)
+
 
 if __name__ == "__main__":
 
@@ -59,11 +61,11 @@ if __name__ == "__main__":
             splitline = line.split(",")
             specie = splitline[0]
             ncbi_id = splitline[1]
-            ncbi_id = ncbi_id.replace(" ","")
+            ncbi_id = ncbi_id.replace(" ", "")
             sequence = splitline[4]
-            with open(basename+"_"+ncbi_id+".fa","w") as fasta:
-                fasta.write(">"+ncbi_id+"|"+specie+"\n")
-                fasta.write(sequence+"\n")
+            with open(basename + "_" + ncbi_id + ".fa", "w") as fasta:
+                fasta.write(">" + ncbi_id + "|" + specie + "\n")
+                fasta.write(sequence + "\n")
 
             cmd = "blastn"
 
